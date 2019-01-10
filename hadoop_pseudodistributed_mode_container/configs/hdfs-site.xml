@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- hdfs-site.xml -->
+<configuration>
+    <property>
+      <name>dfs.replication</name>
+      <value>1</value>
+    </property
+    >
+    <property>
+      <name>dfs.block.size</name>
+      <value>16777216</value>
+      <description>Block size in bits (currently set at 16 MiB)</description>
+    </property>
+</configuration>
