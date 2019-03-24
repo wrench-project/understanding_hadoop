@@ -312,7 +312,7 @@ public class MapTask extends Task {
     throws IOException, ClassNotFoundException, InterruptedException {
     this.umbilical = umbilical;
 
-    System.out.println("MapTask.run() start");
+    long mapStart = System.currentTimeMillis() / 1000L;
 
     if (isMapTask()) {
       // If there are no reducers then there won't be any sort. Hence the map 
@@ -351,8 +351,8 @@ public class MapTask extends Task {
       runOldMapper(job, splitMetaInfo, umbilical, reporter);
     }
     done(umbilical, reporter);
-    System.out.println("MapTask.run() end");
-
+    long mapEnd = System.currentTimeMillis() / 1000L;
+    System.out.println("Map | " + mapStart + " | " + mapEnd);
   }
 
   public Progress getSortPhase() {
@@ -752,6 +752,8 @@ public class MapTask extends Task {
                     TaskReporter reporter
                     ) throws IOException, ClassNotFoundException,
                              InterruptedException {
+
+
     // make a task context so we can get the classes
     org.apache.hadoop.mapreduce.TaskAttemptContext taskContext =
       new org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl(job, 
