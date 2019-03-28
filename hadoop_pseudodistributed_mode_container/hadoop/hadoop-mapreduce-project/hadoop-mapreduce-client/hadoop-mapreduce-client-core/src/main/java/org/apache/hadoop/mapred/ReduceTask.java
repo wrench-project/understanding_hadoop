@@ -322,6 +322,7 @@ public class ReduceTask extends Task {
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
     System.out.println("ReduceTask.run() start");
+    long reduceStart = System.currentTimeMillis() / 1000L;
 
 
     if (isMapOrReduce()) {
@@ -400,6 +401,9 @@ public class ReduceTask extends Task {
     shuffleConsumerPlugin.close();
     done(umbilical, reporter);
     System.out.println("ReduceTask.run() start");
+    long reduceEnd = System.currentTimeMillis() / 1000L;
+    System.out.println(">> | ReduceTask | " + reduceStart + " | " + reduceEnd);
+
 
   }
 

@@ -1,0 +1,2 @@
+build hadoop project with:
+mvn package -Pdist -Pdoc -Psrc -DskipTests

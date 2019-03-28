@@ -23,6 +23,23 @@ if __name__=="__main__":
                                             stderr=subprocess.STDOUT)
     print(run_wordcount.decode())
 
-    # TODO: figure out how to extract print statements from yarn logs
+    # for some reason, without this sleep, I get an error from yarn saying
+    # that it can't find the logs for the application id ..
+    time.sleep(5)
+
+    # write logs to file
+    LOG_FILE_PATH = util.yarn_write_logs_to_file(util.yarn_get_application_id())
+
+    # print out all map and reduce timestamps
+    util.print_blue("map and reduce task timestamps")
+    with open(LOG_FILE_PATH, 'r') as file:
+        for line in file:
+            line = list(map(lambda x : x.strip(), line.split('|')))
+
+            if line[0] == ">>":
+                print(line[1:])
+
+        print("")
+
 
     util.hadoop_tear_down()

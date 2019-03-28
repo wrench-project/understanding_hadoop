@@ -6,15 +6,17 @@ import shutil
 import re
 
 def print_purple(a): print("\033[95m{}\033[00m".format(a))
-def print_red(a): print("\033[91m{}\033[00m" .format(a))
+def print_red(a): print("\033[91m{}\033[00m".format(a))
 def print_blue(a): print("\033[94m{}\033[00m".format(a))
 
 def MiB_to_bytes(MiB):
     return MiB * 1024 * 1024
 
 def generate_inputs(num_files, file_size_in_MiB):
-    """Generates an input directory with a specified number of same sized files and returns
-    the path to that directory."""
+    """
+    Generates an input directory with a specified number of same sized files
+    and returns the path to that directory.
+    """
 
     # generate input files
     INPUT_DIRECTORY = "/home/hadoop/input"
@@ -43,6 +45,14 @@ def generate_inputs(num_files, file_size_in_MiB):
     return INPUT_DIRECTORY
 
 def hadoop_start_up():
+    """
+    Starts up Hadoop in pseudodistributed mode.
+    1. formats namenode
+    2. starts HDFS
+    3. starts YARN
+    4. sets up a directory for user 'hadoop' in HDFS DFS
+    """
+
     # format the namenode
     print_red("formatting the namenode")
     format_namenode = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/hdfs namenode -format -y"],
@@ -83,6 +93,12 @@ def hadoop_start_up():
 
 
 def hadoop_tear_down():
+    """
+    Shuts down the Hadoop environment.
+    1. stops HDFS
+    2. stops YARN
+    3. cleans up tmp files
+    """
     # stop hdfs
     print_red("stopping hdfs")
     stop_hdfs = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/sbin/stop-dfs.sh"],
@@ -106,6 +122,9 @@ def hadoop_tear_down():
     rm_tmp = subprocess.check_output(["rm", "-rf", "/tmp/hadoop-hadoop", "/tmp/hadoop-yarn-hadoop"])
 
 def yarn_get_application_id():
+    """
+    Returns the applicationId with state FINISHED.
+    """
     # get the id of the application that was just run from yarn
     yarn_app_list = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/yarn application -list -appStates FINISHED"],
                                             stderr=subprocess.DEVNULL)
@@ -113,14 +132,18 @@ def yarn_get_application_id():
     application_id = re.search(r'application_[0-9]+_[0-9]+', yarn_app_list.decode())
     return application_id.group()
 
-def yarn_get_logs(application_id):
+def yarn_write_logs_to_file(application_id):
+    """
+    Writes all logs of the given application_id to /home/hadoop/yarn_logs.txt and returns that path.
+    """
+    LOG_FILE_PATH = "/home/hadoop/yarn_logs.txt"
+
     # get the logs of the finished application
-    print_red("getting logs of " + application_id)
+    print_red("writing logs of {0} to {1}".format(application_id, LOG_FILE_PATH))
 
-    '''
-    yarn_logs = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/yarn logs -applicationId " + application_id],
-                                    stderr=subprocess.PIPE)
+    with open(LOG_FILE_PATH, "wb") as log_file:
+        subprocess.Popen(["su", "hadoop", "-c", "/usr/local/hadoop/bin/yarn logs -applicationId {0} -appOwner hadoop".format(application_id)],
+                        stdout=log_file).wait()
 
 
-    print(yarn_logs.decode())
-    '''
+    return LOG_FILE_PATH
