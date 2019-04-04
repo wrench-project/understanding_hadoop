@@ -1118,6 +1118,7 @@ public class MapTask extends Task {
               // created by a reset must be included in "used" bytes
               final int bUsed = distanceTo(kvbidx, bufindex);
               final boolean bufsoftlimit = bUsed >= softLimit;
+              LOG.info("bufsoftlimit: " + bufsoftlimit + " (used: " + bUsed + " , softlimit: " + softLimit);
               if ((kvbend + METASIZE) % kvbuffer.length !=
                   equator - (equator % METASIZE)) {
                 // spill finished, reclaim space
