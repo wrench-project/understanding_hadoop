@@ -9,8 +9,37 @@ def print_purple(a): print("\033[95m{}\033[00m".format(a))
 def print_red(a): print("\033[91m{}\033[00m".format(a))
 def print_blue(a): print("\033[94m{}\033[00m".format(a))
 
-def MiB_to_bytes(MiB):
-    return MiB * 1024 * 1024
+def MiB_to_bytes(MiB): return MiB * 1024 * 1024
+def bytes_to_MiB(bytes): return bytes / (1024 * 1024)
+
+def generate_character_file(num_characters):
+    """
+    Generates an input directory with a single file of num_char characters. (not including \n)
+    """
+    # generate input files
+    INPUT_DIRECTORY = "/home/hadoop/input"
+    try:
+        # if the directory is already there, delete it and its contents
+        if os.path.exists(INPUT_DIRECTORY):
+            shutil.rmtree(INPUT_DIRECTORY)
+
+        os.mkdir(INPUT_DIRECTORY)
+    except OSError:
+        print("Unable to create directory at {}".format(INPUT_DIRECTORY))
+        print("Script failed..")
+        sys.exit()
+
+    os.chdir(INPUT_DIRECTORY)
+    with open("input_file", "w") as f:
+        words = ["r\n" for w in range(num_characters)]
+        for word in words:
+            f.write(word)
+
+    print("File Size: {} MiB, Number of Words: {}".format(bytes_to_MiB(num_characters * 2), num_characters))
+    print("Path to inputs: {}".format(INPUT_DIRECTORY))
+
+    return INPUT_DIRECTORY
+
 
 def generate_inputs(num_files, file_size_in_MiB):
     """
@@ -120,6 +149,14 @@ def hadoop_tear_down():
     # cleanup
     print_red("cleaning up /tmp/hadoop-*")
     rm_tmp = subprocess.check_output(["rm", "-rf", "/tmp/hadoop-hadoop", "/tmp/hadoop-yarn-hadoop"])
+
+def hadoop_print_configuration_property_value(property):
+    """
+    Prints the configuration value for a provided property.
+    """
+    # get the property value and print it to stdout
+    property_value = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/hadoop org.apache.hadoop.hdfs.tools.GetConf -confKey {}".format(property)])
+    print("property: {}, value: {}".format(property, property_value.decode()))
 
 def yarn_get_application_id():
     """
