@@ -5,6 +5,12 @@ import time
 # this module will be placed in the same directory as this file by Dockerfile 'COPY'
 import util
 
+"""
+Test to see that our timestamps can be extracted from Yarn Logs for Map and Reduce tasks.
+TODO: run this test on different input, possibly inserting a 'sleep' into the Map
+and Reduce (in the user map and reduce implementations) to confirm that timestamps are
+placed in the right location. 
+"""
 if __name__=="__main__":
     NUM_FILES = 3
     FILE_SIZE_IN_MiB = 20
