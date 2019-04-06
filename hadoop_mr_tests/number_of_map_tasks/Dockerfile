@@ -1,4 +1,4 @@
-FROM hadoop_test:test
+FROM hadoop_test:test_util
 
 USER root
 
