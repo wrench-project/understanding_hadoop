@@ -27,11 +27,7 @@ if __name__=="__main__":
 
         util.hadoop_start_up()
 
-        # generate and add the input files into hdfs directory /user/hadoop/inputs
-        util.print_blue("generating input files and adding them to /user/hadoop/input")
-        generate_input = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/hdfs dfs -put {}".format(util.generate_inputs(test_case.num_files, test_case.file_size_in_MiB))],
-                                                    stderr=subprocess.DEVNULL)
-        print(generate_input.decode())
+        util.hdfs_generate_word_files(test_case.num_files, test_case.file_size_in_MiB)
 
         # run map reduce wordcount on input
         util.print_blue("run mapreduce wordcount")

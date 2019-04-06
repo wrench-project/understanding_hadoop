@@ -9,7 +9,7 @@ import util
 Test to see that our timestamps can be extracted from Yarn Logs for Map and Reduce tasks.
 TODO: run this test on different input, possibly inserting a 'sleep' into the Map
 and Reduce (in the user map and reduce implementations) to confirm that timestamps are
-placed in the right location. 
+placed in the right location.
 """
 if __name__=="__main__":
     NUM_FILES = 3
@@ -17,13 +17,8 @@ if __name__=="__main__":
 
     util.hadoop_start_up()
 
-    # generate and add the input files into hdfs directory /user/hadoop/inputs
-    util.print_blue("generating input files and adding them to /user/hadoop/input")
-    generate_input = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/hdfs dfs -put {}".format(util.generate_inputs(NUM_FILES, FILE_SIZE_IN_MiB))],
-                                                stderr=subprocess.DEVNULL)
-    print(generate_input.decode())
+    util.hdfs_generate_word_files(NUM_FILES, FILE_SIZE_IN_MiB)
 
-    # run map reduce wordcount on input
     util.print_blue("run mapreduce wordcount")
     run_wordcount = subprocess.check_output(["su", "hadoop", "-c", "/usr/local/hadoop/bin/hadoop jar /usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar wordcount input output"],
                                             stderr=subprocess.STDOUT)
