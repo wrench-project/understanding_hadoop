@@ -14,9 +14,9 @@ RUN apt-get update \
 # install oracle java 8
 ENV JAVA_HOME="/usr/local/java"
 ENV PATH="$PATH:$JAVA_HOME/bin"
-RUN wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3a%2F%2Fwww.oracle.com%2Ftechnetwork%2Fjava%2Fjavase%2Fdownloads%2Fjdk8-downloads-2133151.html; oraclelicense=accept-securebackup-cookie;" "https://download.oracle.com/otn-pub/java/jdk/8u191-b12/2787e4a523244c269598db4e85c51e0c/jdk-8u191-linux-x64.tar.gz" \
-  && tar xvzf jdk-8u191-linux-x64.tar.gz \
-  && mv jdk1.8.0_191 /usr/local/java
+COPY jdk-8u201-linux-x64.tar.gz /tmp
+RUN tar xvzf jdk-8u201-linux-x64.tar.gz \
+  && mv jdk1.8.0_201 /usr/local/java
 
 # install ssh
 RUN apt-get install -y openssh-server
@@ -43,7 +43,7 @@ RUN sed -i -e 's|# export JAVA_HOME=|export JAVA_HOME=/usr/local/java|g' $HADOOP
 # use configs that run hadoop in single node pseudodistributed mode
 COPY configs/ /usr/local/hadoop/etc/hadoop/
 
-# start up ssh server, hdfs, and yarn
+# start up ssh server
 COPY entrypoint.sh /etc/entrypoint.sh
 RUN chmod u+x /etc/entrypoint.sh
 
