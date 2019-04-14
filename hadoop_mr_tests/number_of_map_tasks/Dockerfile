@@ -1,4 +1,4 @@
-FROM hadoop_test:test_util
+FROM wrenchproject/understanding-hadoop:test-util
 
 USER root
 
