@@ -38,26 +38,27 @@ def make_input_directory():
         sys.exit()
 
 
-def hdfs_generate_character_file(num_characters):
+def hdfs_generate_word_file(num_characters_per_word, num_words):
     """
-    Generates a single file named "input_file" of num_char characters (not including \n) in
+    Generates a single file named "input_file" containingn num_words number of words
+    where each character contains num_characters_per_word number of characters (not including \n) in
     INPUT_DIRECTORY, then adds this file to HDFS.
-    For example, calling "path = generate_character_file(2)" will generate a file
-    INPUT_DIRECTORY/input_file with the contents "r\\nr\\n", then place it in HDFS.
+    For example, calling "path = generate_character_file(2,2)" will generate a file
+    INPUT_DIRECTORY/input_file with the contents "rr\\nrr\\n", then place it in HDFS.
     """
     make_input_directory()
 
     # create the file
-    print_red("generating character file")
+    print_red("generating word file")
 
     os.chdir(INPUT_DIRECTORY)
     FILE = "input_file"
     with open(FILE, "w") as f:
-        words = ["r\n" for w in range(num_characters)]
+        words = [("r" * num_characters_per_word) + "\n" for w in range(num_words)]
         for word in words:
             f.write(word)
 
-    print("File Size: {} MiB, Number of Words: {}".format(bytes_to_MiB(num_characters * 2), num_characters))
+    print("Generated word file with {0} {1} character words".format(num_words, num_characters_per_word))
 
     # add the file to HDFS
     generate_input = execute_command(HDFS + " dfs -put " + INPUT_DIRECTORY, stderr=subprocess.DEVNULL)
