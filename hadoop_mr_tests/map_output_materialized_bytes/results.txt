@@ -1,0 +1,20 @@
+Test Results
+------------
+1 mapper
+1 reducer
+
+mapreduce.task.io.sort.mb = 1
+mapreduce.map.sort.spill.percent = 0.5
+
+key_len <= 127
+val_len <= 127
+
+num_chars in key are <= 127 
+each char is an ascii char
+
+Result(map_output_bytes=142500, expected_map_output_bytes=142500, materialized_bytes=190006, expected_materialized_bytes=190006, output_to_materialized_ratio=1.3333754385964913, num_spill_files=1)
+Result(map_output_bytes=143250, expected_map_output_bytes=143250, materialized_bytes=191006, expected_materialized_bytes=191006, output_to_materialized_ratio=1.3333752181500873, num_spill_files=2)
+Result(map_output_bytes=144000, expected_map_output_bytes=144000, materialized_bytes=192006, expected_materialized_bytes=192006, output_to_materialized_ratio=1.333375, num_spill_files=2)
+Result(map_output_bytes=165000, expected_map_output_bytes=165000, materialized_bytes=220006, expected_materialized_bytes=220006, output_to_materialized_ratio=1.3333696969696969, num_spill_files=2)
+Result(map_output_bytes=210000, expected_map_output_bytes=210000, materialized_bytes=280006, expected_materialized_bytes=280006, output_to_materialized_ratio=1.3333619047619047, num_spill_files=2)
+Result(map_output_bytes=300000, expected_map_output_bytes=300000, materialized_bytes=400006, expected_materialized_bytes=400006, output_to_materialized_ratio=1.3333533333333334, num_spill_files=3)
