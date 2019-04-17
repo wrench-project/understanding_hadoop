@@ -986,14 +986,14 @@ public class MapTask extends Task {
       final float spillper =
         job.getFloat(JobContext.MAP_SORT_SPILL_PERCENT, (float)0.8);
       final int sortmb = job.getInt(MRJobConfig.IO_SORT_MB,
-          MRJobConfig.DEFAULT_IO_SORT_MB);
+              MRJobConfig.DEFAULT_IO_SORT_MB);
       indexCacheMemoryLimit = job.getInt(JobContext.INDEX_CACHE_MEMORY_LIMIT,
                                          INDEX_CACHE_MEMORY_LIMIT_DEFAULT);
       if (spillper > (float)1.0 || spillper <= (float)0.0) {
         throw new IOException("Invalid \"" + JobContext.MAP_SORT_SPILL_PERCENT +
             "\": " + spillper);
       }
-      if ((sortmb & 0x7FF) != sortmb) {
+      if ((sortmb & 0x7FF) != sortmb) {   // (sortmb & 11111111111) != sortmb when sortmb > 2^11 - 1
         throw new IOException(
             "Invalid \"" + JobContext.IO_SORT_MB + "\": " + sortmb);
       }
@@ -1001,10 +1001,10 @@ public class MapTask extends Task {
                    MRJobConfig.MAP_SORT_CLASS, QuickSort.class,
                    IndexedSorter.class), job);
       // buffers and accounting
-      int maxMemUsage = sortmb << 20;
-      maxMemUsage -= maxMemUsage % METASIZE;
+      int maxMemUsage = sortmb << 20; // convert to bytes
+      maxMemUsage -= maxMemUsage % METASIZE; // possibly making it so that metadata completely fits in buffer? or that kvbuffer size is divisible by METASIZE
       kvbuffer = new byte[maxMemUsage];
-      bufvoid = kvbuffer.length;
+      bufvoid = kvbuffer.length; // 1 past end of kvbuffer
       kvmeta = ByteBuffer.wrap(kvbuffer)
          .order(ByteOrder.nativeOrder())
          .asIntBuffer();
@@ -1087,6 +1087,7 @@ public class MapTask extends Task {
      */
     public synchronized void collect(K key, V value, final int partition
                                      ) throws IOException {
+      System.out.println("partition: " + partition);
       reporter.progress();
       if (key.getClass() != keyClass) {
         throw new IOException("Type mismatch in key from map: expected "
@@ -1702,6 +1703,19 @@ public class MapTask extends Task {
         }
         LOG.info("Finished spill " + numSpills);
         ++numSpills;
+
+        // sleep so we can inspect the spill file
+        System.out.println("path to spill file: " + filename.getName());
+
+
+        /*
+        while (true) {
+          Thread.sleep(1000);
+        }
+        */
+        //Thread.sleep(180 * 1000);
+
+
       } finally {
         if (out != null) out.close();
         if (partitionOut != null) {
@@ -1870,6 +1884,7 @@ public class MapTask extends Task {
           indexCacheList.get(0).writeToFile(
             mapOutputFile.getOutputIndexFileForWriteInVolume(filename[0]), job);
         }
+        System.out.println("final output file: " + filename[0].getName());
         sortPhase.complete();
         return;
       }
@@ -1892,6 +1907,8 @@ public class MapTask extends Task {
       //The output stream for the final single output file
       FSDataOutputStream finalOut = rfs.create(finalOutputFile, true, 4096);
       FSDataOutputStream finalPartitionOut = null;
+
+      System.out.println("final output file: " + finalOutputFile.getName());
 
       if (numSpills == 0) {
         //create dummy files
@@ -1981,6 +1998,13 @@ public class MapTask extends Task {
             finalPartitionOut.close();
             finalPartitionOut = null;
           }
+
+          /*
+          // sleep so we can copy the final outputfile from nm
+          while (true) {
+            Thread.sleep(1000);
+          }
+          */
 
           sortPhase.startNextPhase();
 

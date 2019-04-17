@@ -400,7 +400,7 @@ public class ReduceTask extends Task {
 
     shuffleConsumerPlugin.close();
     done(umbilical, reporter);
-    System.out.println("ReduceTask.run() start");
+    System.out.println("ReduceTask.run() end");
     long reduceEnd = System.currentTimeMillis() / 1000L;
     System.out.println(">> | ReduceTask | " + reduceStart + " | " + reduceEnd);
 
