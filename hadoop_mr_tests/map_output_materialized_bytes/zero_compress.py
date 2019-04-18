@@ -21,7 +21,7 @@ def int64_to_string_by_bytes(i):
 
 def zero_compress_int64(i):
     """
-    Copied from the java implementation in 
+    Copied from the java implementation in
     hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/io/WritableUtils.java.
 
     Takes in a a number from -(2^63) to ((2^63) - 1) inclusive and serializes it into a binary
@@ -48,19 +48,21 @@ def zero_compress_int64(i):
             length -= 1
 
         with open(FILE_PATH, "wb") as binary_file:
-            # length is some positive number from 1 to 8
-            length = -(length + 120) if (length < -120) else -(length + 112)
+            # length encodes sign and number of bytes used
             binary_file.write(bytes([255 & length]))
 
+            # length is some positive number from 1 to 8
+            length = -(length + 120) if (length < -120) else -(length + 112)
+
             for idx in range(length, 0, -1):
-                # find out how many shifts we need to do to get the bits 
+                # find out how many shifts we need to do to get the bits
                 # at the byte at a given idx
                 shift_bits = (idx - 1) * 8
                 mask = 0xffffffffffffffff << shift_bits
 
                 # shift those bits to the lowest order byte, then write that byte
                 value_to_write = (i & mask) >> shift_bits
-                # mask with 255 so we write only a single byte 
+                # mask with 255 so we write only a single byte
                 binary_file.write(bytes([255 & value_to_write]))
 
     return FILE_PATH
@@ -74,7 +76,7 @@ def size_of_zero_compressed_int64(i):
         return 1
     else:
         length = 0
-        
+
         if i < 0:
             i ^= -1
 
@@ -84,7 +86,7 @@ def size_of_zero_compressed_int64(i):
             length += 1
 
         return length + 1
-        
+
 
 def print_int64_range_binary(start, end):
     """
@@ -95,9 +97,8 @@ def print_int64_range_binary(start, end):
 
 
 if __name__=="__main__":
-    """
-    # print sample numbers
-    for i in [-256, -129, -128, -112, 7, 255, 256, 1024]:
+    # test numbers
+    for i in [-(1<<63), -(1<<31), -(1<<23), -(1<<15), -128, -112, -1, 1, 1<<7, 1<<15, 1<<23, 1<<31, 1<<63]:
         path = zero_compress_int64(i)
 
         with open(path, "rb") as binary_file:
@@ -109,6 +110,5 @@ if __name__=="__main__":
 
         encoded_bytes_as_string = " ".join([format(byte[0], "08b") for byte in encoded_bytes])
 
-        print("{0:4}: ".format(i), "{:>70}".format(encoded_bytes_as_string), 
+        print("{0:20}: ".format(i), "{:>80}".format(encoded_bytes_as_string),
                 "len: {} ".format(len(encoded_bytes)), "expected len: {}".format(size_of_zero_compressed_int64(i)))
-        """

@@ -12,34 +12,20 @@ based on map inputs, map output buffer size, and map sort spill percent.
 """
 if __name__=="__main__":
 
-    """
-    300000 :
-    50000 : 3 spills
-    35000 : 2 spills
-    27500 : 2 spills
-    24000 : 2 spills
-    23875 : 2 spills
-    23750 : 1 spill (materialized output bytes: 190006)
-    23500 : 1 spill (materialized output bytes: 188006)
-    23000 : 1 spill
-    22000 : 1 spill
-    20000 : 1 spill
-    """
-
-    NUM_CHARACTERS_PER_WORD = 1
-    TEXT_WRITABLE_LEN_SIZE = 1
+    NUM_CHARACTERS_PER_WORD = 128
+    TEXT_WRITABLE_LEN_SIZE = 2
     INT_WRITABLE_SIZE = 4
 
     KEY_VALUE_SIZE = NUM_CHARACTERS_PER_WORD + TEXT_WRITABLE_LEN_SIZE + INT_WRITABLE_SIZE
 
-    KEY_LEN_SIZE = 1
+    KEY_LEN_SIZE = 2
     VALUE_LEN_SIZE = 1
 
     KEY_VALUE_META_DATA_SIZE = KEY_LEN_SIZE + VALUE_LEN_SIZE
 
     SPILL_FILE_TRAILING_BYTES = 6
 
-    NUM_WORDS_LIST = [23750, 23875, 24000, 27500, 35000, 50000]
+    NUM_WORDS_LIST = [100, 500, 1000, 5000, 10000, 50000, 100000]
 
     compute_expected_map_output_bytes = lambda num_words : num_words * KEY_VALUE_SIZE
     compute_expected_map_output_materialized_bytes = lambda num_words : ((KEY_VALUE_META_DATA_SIZE + KEY_VALUE_SIZE) * num_words) + SPILL_FILE_TRAILING_BYTES
