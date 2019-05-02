@@ -37,6 +37,24 @@ def make_input_directory():
         print("Script failed..")
         sys.exit()
 
+def hdfs_generate_custom_word_file(word_list):
+    make_input_directory()
+
+    # create the file
+    print_red("generating word file")
+
+    os.chdir(INPUT_DIRECTORY)
+    FILE = "input_file"
+    with open(FILE, "w") as f:
+        words = "\n".join(word_list)
+        for word in words:
+            f.write(word)
+
+        print("Generated a file with {} words".format(len(word_list)))
+
+    # add the file to hdfs
+    generate_input = execute_command(HDFS + " dfs -put " + INPUT_DIRECTORY, stderr=subprocess.DEVNULL)
+    print(generate_input.decode())
 
 def hdfs_generate_word_file(num_characters_per_word, num_words):
     """

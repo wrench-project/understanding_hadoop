@@ -17,4 +17,8 @@
       <name>mapreduce.map.sort.spill.percent</name>
       <value>0.5</value>
     </property>
+    <!-- <property> -->
+    <!--    <name>mapreduce.job.reduces</name>  -->
+    <!--    <value>2</value>  -->
+    <!-- </property> -->
 </configuration>
