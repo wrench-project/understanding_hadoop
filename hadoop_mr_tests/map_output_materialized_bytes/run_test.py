@@ -10,8 +10,8 @@ import zero_compress
 
 """
 Test to determine the number number of spill files and map output materialized bytes
-based on map inputs, map output buffer size, and map sort spill percent given a single
-reducer and that no combiners are run.
+based on map inputs, map output buffer size, and map sort spill percent 
+assuming a single mapper, 1 or more reducers, and that no combiners are run.
 
 Keys for this program are the java type TextWritable. A text writable type
 contains a string followed by a zero compressed number specifying the length of
@@ -167,7 +167,7 @@ if __name__=="__main__":
                                                                                                     key_num_bytes(num_chars),
                                                                                                     VALUE_NUM_BYTES)
 
-                # use "-D property=value" to set mapreduce configuration properties from the command line 
+                # use "-D property=value" to set mapreduce configuration properties from the command line
                 run_wordcount = util.execute_command("/usr/local/hadoop/bin/hadoop jar /usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar wordcount -D mapreduce.job.reduces={} input output".format(num_reducers),
                                                         stderr=subprocess.STDOUT)
 
