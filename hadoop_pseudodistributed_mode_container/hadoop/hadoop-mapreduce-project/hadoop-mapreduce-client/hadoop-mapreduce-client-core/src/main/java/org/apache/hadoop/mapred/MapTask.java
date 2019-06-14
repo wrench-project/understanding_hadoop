@@ -1701,13 +1701,10 @@ public class MapTask extends Task {
           totalIndexCacheMemory +=
             spillRec.size() * MAP_OUTPUT_INDEX_RECORD_LENGTH;
         }
-        LOG.info("Finished spill " + numSpills);
+        LOG.info("Finished spill " + numSpills + ", file path: " + filename.getName());
         ++numSpills;
 
         // sleep so we can inspect the spill file
-        System.out.println("path to spill file: " + filename.getName());
-
-
         /*
         while (true) {
           Thread.sleep(1000);
@@ -1871,9 +1868,15 @@ public class MapTask extends Task {
       final TaskAttemptID mapId = getTaskID();
 
       for(int i = 0; i < numSpills; i++) {
+        // r: record the paths of all spill files
         filename[i] = mapOutputFile.getSpillFile(i);
+
+        // r: sum up the lengths of all spill files, because
+        //    the merged final file will be about this size
         finalOutFileSize += rfs.getFileStatus(filename[i]).getLen();
       }
+
+      // r: if only a single spill was made, we know it is already sorted so we are done
       if (numSpills == 1) { //the spill is the final output
         sameVolRename(filename[0],
             mapOutputFile.getOutputFileForWriteInVolume(filename[0]));
@@ -1971,7 +1974,7 @@ public class MapTask extends Task {
           boolean sortSegments = segmentList.size() > mergeFactor;
           //merge
           @SuppressWarnings("unchecked")
-          RawKeyValueIterator kvIter = Merger.merge(job, rfs,
+          RawKeyValueIterator kvIter = Merger.merge(job, rfs,                // r: for each partition, merge all the segments belonging to that partition
                          keyClass, valClass, codec,
                          segmentList, mergeFactor,
                          new Path(mapId.toString()),
