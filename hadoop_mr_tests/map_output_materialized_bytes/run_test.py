@@ -10,7 +10,7 @@ import zero_compress
 
 """
 Test to determine the number number of spill files and map output materialized bytes
-based on map inputs, map output buffer size, and map sort spill percent 
+based on map inputs, map output buffer size, and map sort spill percent
 assuming a single mapper, 1 or more reducers, and that no combiners are run.
 
 Keys for this program are the java type TextWritable. A text writable type
@@ -84,6 +84,8 @@ Result(num_reducers=2, num_chars_per_word=128, num_words=10000, map_output_bytes
 Result(num_reducers=2, num_chars_per_word=128, num_words=50000, map_output_bytes=6700000, expected_map_output_bytes=6700000, materialized_bytes=6850012, expected_materialized_bytes=6850012, num_spill_files=15, expected_num_spill_files=15)
 """
 
+# TODO: make a function that can estimate output based on some distribution of keys/key lengths
+
 def estimate_num_spill_files(num_words, key_num_bytes, value_num_bytes, mapreduce_task_io_sort_mb, mapreduce_map_sort_spill_percent):
     """
     Computes the number of spill files that will be created by a single mapper.
@@ -97,14 +99,14 @@ def estimate_num_spill_files(num_words, key_num_bytes, value_num_bytes, mapreduc
     return math.ceil((num_words * (KEY_VALUE_META_DATA_NUM_BYTES + key_len_num_bytes + key_num_bytes + value_len_num_bytes + value_num_bytes)) /
                     (util.MiB_to_bytes(mapreduce_task_io_sort_mb) * mapreduce_map_sort_spill_percent))
 
-def estimate__map_output_bytes(num_words, key_num_bytes, value_num_bytes):
+def estimate_map_output_bytes(num_words, key_num_bytes, value_num_bytes):
     """
     Computes "map output bytes", that is the total number of bytes all key, value pairs
     consume when serialized.
     """
     return num_words * (key_num_bytes + value_num_bytes)
 
-def estimate__map_output_materialized_bytes(num_words, num_reducers, key_num_bytes, value_num_bytes):
+def estimate_map_output_materialized_bytes(num_words, num_reducers, key_num_bytes, value_num_bytes):
     """
     Computes "map output materialized bytes", that is the total number of bytes written from the map output buffer
     to spill files.
@@ -158,11 +160,11 @@ if __name__=="__main__":
                                                                     MAPREDUCE_TASK_IO_SORT_MB,
                                                                     MAPREDUCE_MAP_SORT_SPILL_PERCENT)
                 map_output_bytes = 0
-                estimated_map_output_bytes = estimate__map_output_bytes(num_words,
+                estimated_map_output_bytes = estimate_map_output_bytes(num_words,
                                                                         key_num_bytes(num_chars),
                                                                         VALUE_NUM_BYTES)
                 map_output_materialized_bytes = 0
-                estimated_map_output_materialized_bytes = estimate__map_output_materialized_bytes(num_words,
+                estimated_map_output_materialized_bytes = estimate_map_output_materialized_bytes(num_words,
                                                                                                     num_reducers,
                                                                                                     key_num_bytes(num_chars),
                                                                                                     VALUE_NUM_BYTES)
