@@ -764,7 +764,9 @@ public class Merger {
           if (totalBytes != 0) {
             progPerByte = 1.0f / (float)totalBytes;
           }
-          
+
+          LOG.info("passNo: " + passNo + " numSegments: " + numSegments + " factor: " + factor);
+
           passNo++;
         }
         //we are worried about only the first pass merge factor. So reset the 
