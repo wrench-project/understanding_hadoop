@@ -4,6 +4,7 @@ import sys
 import subprocess
 import shutil
 import re
+import datetime
 
 def print_purple(a, **kwargs): print("\033[95m{}\033[00m".format(a), **kwargs)
 def print_red(a, **kwargs): print("\033[91m{}\033[00m".format(a), **kwargs)
@@ -227,3 +228,44 @@ def yarn_write_logs_to_file(application_id):
 
 
     return LOG_FILE_PATH
+
+def log4j_get_iso8601_datetime(line):
+    """
+    Takes in as input a line generated from LOG4J and returns the date at which
+    the line was generated as a datetime object.
+
+    This assumes the the date format set in hadoop/etc/log4j.properties is as follows:
+    # Pattern format: Date LogLevel LoggerName LogMessage
+    log4j.appender.RFA.layout.ConversionPattern=%d{ISO8601} %p %c: %m%n
+
+    Example Line:
+    2019-06-16 23:15:21,554 INFO [main] org.apache.hadoop.mapred.Merger: passNo: 2 numSegments: 3 factor: 3
+    """
+    tokens = line.split(' ')
+    timestamp = tokens[0] + " " + tokens[1]
+
+    # split on anything that isn't a digit
+    pattern  = re.compile('\D')
+    date_tokens = list(map(lambda num_str: int(num_str), pattern.split(timestamp)))
+
+    #YEAR = 0
+    #MONTH = 1
+    #DAY = 2
+
+    #HOUR = 3
+    #MINUTE = 4
+    #SECOND = 5
+    FRACTION_OF_SECOND = 6
+
+    date_tokens[FRACTION_OF_SECOND] = int((date_tokens[FRACTION_OF_SECOND] / 1000) * (10**6))
+
+    return datetime.datetime(*date_tokens).isoformat()
+
+def sort_log4j_by_timestamp(lines):
+    """
+    Takes in as input a list of lines generated from LOG4J and returns a new
+    list with the logs sorted by timestamp. 
+    """
+    lines_by_timestamp = [(log4j_get_iso8601_datetime(line), line) for line in lines]
+    lines_by_timestamp = sorted(lines_by_timestamp, key=lambda line: line[0])
+    return [line[1] for line in lines_by_timestamp]
