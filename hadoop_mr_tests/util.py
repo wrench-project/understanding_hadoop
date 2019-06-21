@@ -231,8 +231,8 @@ def yarn_write_logs_to_file(application_id):
 
 def log4j_get_iso8601_datetime(line):
     """
-    Takes in as input a line generated from LOG4J and returns the date at which
-    the line was generated as a datetime object.
+    Takes in as input a line generated from map reduce that is prefixed with
+    an ISO8601 date and returns the date as a datetime object.
 
     This assumes the the date format set in hadoop/etc/log4j.properties is as follows:
     # Pattern format: Date LogLevel LoggerName LogMessage
@@ -261,11 +261,23 @@ def log4j_get_iso8601_datetime(line):
 
     return datetime.datetime(*date_tokens).isoformat()
 
+def is_log4j_output_prefixed_with_date(line):
+    """
+    Takes in as input a line generated from map reduce and checks whether or not
+    that line is prefixed with a date formatted in ISO8601.
+    """
+    tokens = line.split(' ')
+    expected_date_string = tokens[0] + " " + tokens[1]
+
+    date_pattern = re.compile('\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}')
+    return True if date_pattern.match(expected_date_string) != None else False
+
+
 def sort_log4j_by_timestamp(lines):
     """
-    Takes in as input a list of lines generated from LOG4J and returns a new
-    list with the logs sorted by timestamp. 
+    Takes in as input a list of lines generated from map reduce and returns a new
+    list with the logs sorted by timestamp.
     """
-    lines_by_timestamp = [(log4j_get_iso8601_datetime(line), line) for line in lines]
+    lines_by_timestamp = [(log4j_get_iso8601_datetime(line), line) for line in lines if is_log4j_output_prefixed_with_date(line)]
     lines_by_timestamp = sorted(lines_by_timestamp, key=lambda line: line[0])
     return [line[1] for line in lines_by_timestamp]
