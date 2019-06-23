@@ -38,20 +38,28 @@ def make_input_directory():
         print("Script failed..")
         sys.exit()
 
-def hdfs_generate_custom_word_file(word_list):
+def hdfs_generate_custom_word_files(*word_lists):
+    """
+    Given a list of list of strings, generates a file with the contents
+    of each list and adds them to HDFS. For example,
+    calling hdfs_generate_word_files([["ab", "cd"], ["ef", "gh"]])
+    will add two files with the contents "ab\ncd\n" and "ef\n\gh\n"
+    respectively to hdfs.
+    """
     make_input_directory()
 
     # create the file
-    print_red("generating word file")
+    print_red("generating word {} file(s)".format(len(word_lists)))
 
     os.chdir(INPUT_DIRECTORY)
-    FILE = "input_file"
-    with open(FILE, "w") as f:
-        words = "\n".join(word_list)
-        for word in words:
-            f.write(word)
+    for file_num, word_list in enumerate(*word_lists):
+        FILE = "input_file_{}".format(file_num)
+        with open(FILE, "w") as f:
+            words = "\n".join(word_list)
+            for word in words:
+                f.write(word)
 
-        print("Generated a file with {} words".format(len(word_list)))
+        print("Generated {} with {} words".format(FILE, len(word_list)))
 
     # add the file to hdfs
     generate_input = execute_command(HDFS + " dfs -put " + INPUT_DIRECTORY, stderr=subprocess.DEVNULL)
@@ -59,7 +67,7 @@ def hdfs_generate_custom_word_file(word_list):
 
 def hdfs_generate_word_file(num_characters_per_word, num_words):
     """
-    Generates a single file named "input_file" containingn num_words number of words
+    Generates a single file named "input_file" containing num_words number of words
     where each character contains num_characters_per_word number of characters (not including \n) in
     INPUT_DIRECTORY, then adds this file to HDFS.
     For example, calling "path = generate_character_file(2,2)" will generate a file
