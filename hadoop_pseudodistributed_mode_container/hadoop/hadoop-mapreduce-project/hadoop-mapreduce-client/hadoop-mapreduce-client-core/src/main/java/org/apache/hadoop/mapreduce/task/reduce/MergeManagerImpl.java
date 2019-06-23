@@ -176,6 +176,16 @@ public class MergeManagerImpl<K, V> implements MergeManager<K, V> {
         MRJobConfig.REDUCE_MEMORY_TOTAL_BYTES,
         Runtime.getRuntime().maxMemory()) * maxInMemCopyUse);
 
+
+    //r : see what total memory is
+    LOG.info("Runtime.getRuntime().totalMemory(): " + Runtime.getRuntime().totalMemory());
+
+    // r: see what free memory is
+    LOG.info("Runtime.getRuntime().freeMemory(): " + Runtime.getRuntime().freeMemory());
+
+    // r: see what max memory is
+    LOG.info("Runtime.getRuntime().maxMemory(): " + Runtime.getRuntime().maxMemory());
+
     this.ioSortFactor = jobConf.getInt(MRJobConfig.IO_SORT_FACTOR,
         MRJobConfig.DEFAULT_IO_SORT_FACTOR);
 

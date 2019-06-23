@@ -322,6 +322,7 @@ public class ReduceTask extends Task {
     job.setBoolean(JobContext.SKIP_RECORDS, isSkipping());
 
     System.out.println("ReduceTask.run() start");
+    LOG.info("ReduceTask.run() start");
     long reduceStart = System.currentTimeMillis() / 1000L;
 
 
@@ -634,7 +635,9 @@ public class ReduceTask extends Task {
                                                reporter, comparator, keyClass,
                                                valueClass);
     try {
+      LOG.info("about to run reducer.run()");
       reducer.run(reducerContext);
+      LOG.info("reducer.run() complete");
     } finally {
       trackedRW.close(reducerContext);
     }
