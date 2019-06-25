@@ -452,6 +452,12 @@ public class ShuffleSchedulerImpl<K,V> implements ShuffleScheduler<K,V> {
     pendingHosts.remove(host);
     host.markBusy();
 
+    // r: cannot get LOG.debug to show in yarn aggregated logs
+    //    so using LOG.info for the folllwing
+    LOG.info(
+            "Assigning " + host + " with " + host.getNumKnownMapOutputs() + " to "
+                    + Thread.currentThread().getName());
+
     if (LOG.isDebugEnabled()) {
       LOG.debug(
           "Assigning " + host + " with " + host.getNumKnownMapOutputs() + " to "

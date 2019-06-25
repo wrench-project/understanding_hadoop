@@ -11,11 +11,13 @@ if __name__=="__main__":
         "mapreduce.reduce.java.opts": "-Xmx100m", # max reduce task jvm heap size
         "mapreduce.reduce.shuffle.input.buffer.percent": 0.1, # portion of the JVM heap to be used for reduce task buffer
         "mapreduce.reduce.shuffle.merge.percent" : 0.5, # the threshold usage proportion for the map outputs buffer (defined bymapred.job.shuffle.in put.buffer.percent) for starting the process of merging the outputs and spilling to disk.
-        "mapreduce.task.io.sort.factor": 3 # the maximum number of streams to merge at once when sorting files
+        "mapreduce.task.io.sort.factor": 3, # the maximum number of streams to merge at once when sorting files
+        "mapreduce.reduce.shuffle.parallelcopies": 5 # the number of threads used to copy map outputs to the reducer
     }
 
     # run trials with NUM_MAPPERS number of mappers and a single reducer
-    NUM_MAPPERS = [3,5,9]
+    #NUM_MAPPERS = [3,5,9]
+    NUM_MAPPERS = [3]
     logs = []
     for num_mappers in NUM_MAPPERS:
         util.hadoop_start_up()
@@ -56,12 +58,14 @@ if __name__=="__main__":
         print("******************************************************************")
         for line in log:
             if "org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl" in line:
-                util.print_purple(line)
+                print(line)
             elif "org.apache.hadoop.mapreduce.task.reduce.Fetcher" in line:
+                print(line)
+            elif "org.apache.hadoop.mapreduce.task.reduce.ShuffleSchedulerImpl" in line:
                 util.print_red(line)
             elif "org.apache.hadoop.mapred.Merger" in line:
-                util.print_blue(line)
-            elif "org.apache.hadoop.mapred.ReduceTrask" in line:
+                print(line)
+            elif "org.apache.hadoop.mapred.ReduceTask" in line:
                 print(line)
             else:
                 continue
