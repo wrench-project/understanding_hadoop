@@ -6,13 +6,57 @@ import time
 import util
 
 if __name__=="__main__":
+    '''
+    REDUCE SIDE PROPERTIES
+    ----------------------
+    mapreduce.reduce.shulffle.parallelcopies
+        The number of threads (Fetcher.java or LocalFetcher.java in the source) used to copy
+        map outputs to the reducer. Fetcher theads ask a scheduler (ShuffleSchedulerImpl.java)
+        for a host to copy map outputs from by calling getHost() (this is synchronized). Therefore
+        it will be useless (and wasteful) to set this value to be more than the number of hosts 
+        available to run map tasks. 
+
+    mapreduce.reduce.shuffle.maxfetchfailures
+        The number of times a reducer tries to fetch a map output before reporting the
+        error. (Not tested here)
+
+    mapreduce.task.io.sort.factor
+        The maximum number of streams to merge at once when sorting files. (Also used for map side merges)
+
+    mapreduce.reduce.shuffle.input.buffer.percent
+        The proportion of the total heap size to be allocated to the map outputs buffer during the
+        copy phase of the shuffle. If "mapreduce.reduce.java.opts" = -Xmx100m, then the reduce task
+        jvm process has a max heap size of 100 MB (will actually be a little less than this in practice
+        when which can be observed by calling Runtime.getRuntime().maxMemory()) and if
+        mapreduce.reduce.shuffle.input.buffer.percent = 0.1, then about 10 MB will be used for
+        the map outputs buffer.
+
+    mapreduce.reduce.shuffle.merge.percent
+        The threshold usage proportion for the map outputs buffer for starting the process of
+        merging the outputs and spilling to disk.
+
+    mapreduce.reduce.merge.inmem.threshold
+        The threshold number of map outputs for starting the process of merging the outputs and
+        spilling to disk. A value of 0 or less means there is no threshold and the spill behavior
+        is goverened by the merge.percent property above. 
+
+    mapreduce.reduce.input.buffer.percent
+        The proportion of the total heap size to be used for retaining map outputs in memory 
+        during the reduce. For the reduce phase to begin, the size of map outputs in memory must 
+        be no more than this size. By default, all map outputs are merged to disk before the reduce 
+        begins, to give the reducers as much memory as possible. However, if your reducers require 
+        less memory, this value may be increased to minimize the number of trips to disk.
+    '''
+
     MAPREDUCE_PROPERTIES = {
-        "mapreduce.reduce.memory.mb": 1024, # amount of memory given to container for reduce task
-        "mapreduce.reduce.java.opts": "-Xmx100m", # max reduce task jvm heap size
-        "mapreduce.reduce.shuffle.input.buffer.percent": 0.1, # portion of the JVM heap to be used for reduce task buffer
-        "mapreduce.reduce.shuffle.merge.percent" : 0.5, # the threshold usage proportion for the map outputs buffer (defined bymapred.job.shuffle.in put.buffer.percent) for starting the process of merging the outputs and spilling to disk.
-        "mapreduce.task.io.sort.factor": 3, # the maximum number of streams to merge at once when sorting files
-        "mapreduce.reduce.shuffle.parallelcopies": 5 # the number of threads used to copy map outputs to the reducer
+        "mapreduce.reduce.memory.mb": 1024, # memory allotted for reduce task container
+        "mapreduce.reduce.java.opts": "-Xmx100m", # reduce jvm process heap size 
+        "mapreduce.reduce.shuffle.parallelcopies": 5, 
+        "mapreduce.task.io.sort.factor": 3, 
+        "mapreduce.reduce.shuffle.input.buffer.percent": 0.1, 
+        "mapreduce.reduce.shuffle.merge.percent" : 0.5, 
+        "mapreduce.reduce.merge.inmem.threshold": 1000, 
+        "mapreduce.reduce.input.buffer.percent": 0.5
     }
 
     # run trials with NUM_MAPPERS number of mappers and a single reducer
@@ -58,13 +102,18 @@ if __name__=="__main__":
         print("******************************************************************")
         for line in log:
             if "org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl" in line:
+                util.print_purple(line)
+            elif "org.apache.hadoop.mapreduce.task.reduce.MergeThread" in line:
+                print(line)
+            elif "org.apache.hadoop.mapreduce.task.reduce.InMemoryMapOutput" in line:
                 print(line)
             elif "org.apache.hadoop.mapreduce.task.reduce.Fetcher" in line:
                 print(line)
             elif "org.apache.hadoop.mapreduce.task.reduce.ShuffleSchedulerImpl" in line:
-                util.print_red(line)
-            elif "org.apache.hadoop.mapred.Merger" in line:
+                # Fetcher threads appear to be assigned 1 per host and not one per Mapper
                 print(line)
+            elif "org.apache.hadoop.mapred.Merger" in line:
+                util.print_red(line)
             elif "org.apache.hadoop.mapred.ReduceTask" in line:
                 print(line)
             else:
