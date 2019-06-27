@@ -49,7 +49,7 @@ def hdfs_generate_custom_word_files(*word_lists):
     make_input_directory()
 
     # create the file
-    print_red("generating word {} file(s)".format(len(word_lists)))
+    print_red("generating word {} file(s)".format(len(*word_lists)))
 
     os.chdir(INPUT_DIRECTORY)
     for file_num, word_list in enumerate(*word_lists):
