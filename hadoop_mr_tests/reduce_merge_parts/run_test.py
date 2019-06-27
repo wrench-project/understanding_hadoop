@@ -31,6 +31,19 @@ if __name__=="__main__":
         mapreduce.reduce.shuffle.input.buffer.percent = 0.1, then about 10 MB will be used for
         the map outputs buffer.
 
+    mapreduce.reduce.shuffle.memory.limit.percent
+        The maximum percentage of the input buffer that a single map output file being copied to
+        a reducer can be for the file to be copied into the reducers main memory. If the
+        map output file being copied exceeds this percentage, then the file is copied and written
+        straight to disk. For example, if a reduce task has a heap size of about 100MB as set by
+        "mapreduce.reduce.java.opts": "-Xmx100m", and "mapreduce.reduce.shuffle.input.buffer.percent" =
+        0.1, then about 10MB of the reduce task's heap will serve as the input buffer for map outputs.
+        Say that "mapreduce.reduce.shuffle.memory.limit.percent" = 0.5, then when the reduce task
+        copies a map output of about 5MB or less, the map output will be copied to memory. If
+        the map output doesn't fit into memory it's currently too full, its contents will be spilled
+        and the shuffle should proceed after. If the map output is greater than about 5MB, then
+        the output will be copied to disk. 
+
     mapreduce.reduce.shuffle.merge.percent
         The threshold usage proportion for the map outputs buffer for starting the process of
         merging the outputs and spilling to disk.
@@ -54,6 +67,7 @@ if __name__=="__main__":
         "mapreduce.reduce.shuffle.parallelcopies": 5, 
         "mapreduce.task.io.sort.factor": 3, 
         "mapreduce.reduce.shuffle.input.buffer.percent": 0.1, 
+        "mapreduce.reduce.shuffle.memory.limit.percent": 0.2,
         "mapreduce.reduce.shuffle.merge.percent" : 0.5, 
         "mapreduce.reduce.merge.inmem.threshold": 1000, 
         "mapreduce.reduce.input.buffer.percent": 0.5
@@ -61,13 +75,17 @@ if __name__=="__main__":
 
     # run trials with NUM_MAPPERS number of mappers and a single reducer
     #NUM_MAPPERS = [3,5,9]
-    NUM_MAPPERS = [3]
+    NUM_MAPPERS = [8]
     logs = []
     for num_mappers in NUM_MAPPERS:
         util.hadoop_start_up()
 
         # create input file(s) that result in map task output files being roughly 1 MB plus a few bytes
-        util.hdfs_generate_custom_word_files([["r" for j in range((1 << 20) // 8)] for i in range(num_mappers)])
+        # using ((1<<20) // 8) because each KV pair in a map output file will use 8 bytes including metadata
+        #util.hdfs_generate_custom_word_files([["r" for j in range((1 << 20) // 8)] for i in range(num_mappers)])
+
+        # create input file(s) that result in map task output files being 1MB, 2MB, 3MB....
+        util.hdfs_generate_custom_word_files([["r" for j in range(((1 << 20) // 8)* (i+1))] for i in range(num_mappers)])
 
         util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
                                 "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
