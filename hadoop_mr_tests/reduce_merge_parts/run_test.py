@@ -73,66 +73,167 @@ if __name__=="__main__":
         "mapreduce.reduce.input.buffer.percent": 0.5
     }
 
-    # run trials with NUM_MAPPERS number of mappers and a single reducer
-    #NUM_MAPPERS = [3,5,9]
-    NUM_MAPPERS = [8]
+    '''
+    Reduce Task Configuration based on MAPREDUCE_PROPERTIES
+    -------------------------------------------------------
+    allocated memory: 1024 MB
+    jvm heap size: 100 MB (a little less in practice as Runtime.getRuntime.maxMemory() returns 93323264 bytes)
+    input buffer size: (93323264 * 0.1) = 9332326.4 bytes or about 9.3 MB
+    merge threshold: (9.3 MB * 0.5) = 4666163.2 bytes or about 4.6 MB
+    max single shuffle limit: 1866465.28 bytes or about 1.9 MB
+    reduce function input buffer: (9.3 MB * 0.5) = 4666163.2 bytes or about 4.6 MB
+    '''
+
+    # each KV pair will use  8 bytes in a map output file
+    TOTAL_BYTES_PER_KV_PAIR = 8
+    ONE_MB = 1 << 20
+
+    ####################################################
+    # Map Output File Sizes < Max Single Shuffle Limit #
+    ####################################################
+    '''
+    Test: 2 mappers each output 1 MB files. 
+    Result: 
+        - Both files are read into memory.
+        - 2 MB of input fits completely in memory and does not exceed the merge threshold, so only a single merge should be
+          done from RAM straight into the reduce as 2 MB also fits in the reduce function input buffer size 
+    '''
+    T1 = [["r" for j in range(ONE_MB // TOTAL_BYTES_PER_KV_PAIR)] for i in range(2)]
+
+    '''
+    Test: 3 mappers each output 1 MB files. 
+    Result:
+        - All files are read into memory.
+        - The total size of all files will be < the merge threshold so InMemoryMerger won't merge the files.
+        - The 3 sorted files will be left in memory for the reduce as their total size is < the size of the reduce function input buffer
+        - The 3 sorted files will not be merged into 1 as the sort factor is 3.
+    '''
+    T2 = [["r" for j in range(ONE_MB // TOTAL_BYTES_PER_KV_PAIR)] for i in range(3)]
+
+    '''
+    Test: 5 mappers each output 1 MB files.
+    Result:
+        - All files are read into memory. 
+        - Merge threshold is met as 5 MB > 4.6 MB and InMemoryMerger merges the 5 files into one and spills it onto disk.
+        - The single spill file is fed from disk to the reducer. 
+    '''
+    T3 = [["r" for j in range(ONE_MB // TOTAL_BYTES_PER_KV_PAIR)] for i in range(5)]
+
+    '''
+    Test: 10 mappers each output 1 MB files.
+    Result:
+        - 5 files are read into memory.
+        - Merge threshold is met, then InMemoryMerger merges the 5 files into one and spills it onto disk.
+        - Repeat the above 2 steps.
+        - 2 spill files now reside on disk and are fed to the reducer. 
+    '''
+    T4 = [["r" for j in range(ONE_MB // TOTAL_BYTES_PER_KV_PAIR)] for i in range(10)]
+
+    '''
+    Test: 25 mappers each output 1 MB files.
+    Result:
+        - 5 files are read into memory.
+        - Merge threshold is met, then InMemoryMerger merges the 5 files into one and spills it onto disk.
+        - Repeat the above 4 more times.
+        - On the fifth time the merge threshold is met, when the InMemoryMergeMerger calls closeOnDiskFile(compressAwarePath),
+            the OnDiskMerger is called to merge the on disk files because onDiskMapOutputs.sizez() >= (2 * ioSortFactor - 1).
+        - The OnDiskMerger merges 3 files, leaving two so that we end up with 3 total files in the end (ioSortFactor = 3).
+        - The 3 files are fed to the reducer from disk. 
+    '''
+    T5 = [["r" for j in range(ONE_MB // TOTAL_BYTES_PER_KV_PAIR)] for i in range(25)]
+
+    '''
+    Test: 10 mappers each output 512 KB files.
+    Result:
+        - 9 files are read into memory.
+        - Merge threshold is met, then InMemoryMerger merges the 9 files into one and spills it onto disk. 
+            Merge factor is not considered for in memory segments, and so in one pass, the 9 files are merged
+            into one. 
+        - 1 file is read into memory. 
+        - There is 1 file in memory that is 512 KB, and 1 file on disk that is about (512 KB * 9) KB. 
+            These files are fed to the reducer as is. 
+    '''
+    T6 = [["r" for j in range((ONE_MB // 2) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(10)]
+
+    ####################################################
+    # Map Output File Sizes > Max Single Shuffle Limit #
+    ####################################################
+    '''
+    Test: 1 mapper outputs a file whose size is about 3 MB which is greater than the max shuffle limit.
+    Result:
+        - The file is copied from the mapper, to the disk of the reducer.
+        - Even though 3 MB < input buffer size and 3 MB < reduce function input buffer, since 3 MB > max shuffle limit,
+          the file is written to disk. 
+    '''
+    T9 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(1)]
+
+    '''
+    Test: 2 mappers each output a file whose size is about 3 MB which is greater than the max shuffle limit.
+    Result
+        - Both files are copied straight to disk.
+        - Left with 2 sorted files since sort factor is 3.
+    '''
+    T10 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(2)]
+
+
+
+    # set the test 
+    test = T6
+
+    # ----------------------------------------------------------------------------------- 
+    util.hadoop_start_up()
+
+    util.hdfs_generate_custom_word_files(test)
+
+    util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
+                            "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
+                            "wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])),
+                                stderr=subprocess.STDOUT)
+
+    time.sleep(5)
+
+    # write logs to file
+    LOG_FILE_PATH = util.yarn_write_logs_to_file(util.yarn_get_application_id())
+
     logs = []
-    for num_mappers in NUM_MAPPERS:
-        util.hadoop_start_up()
 
-        # create input file(s) that result in map task output files being roughly 1 MB plus a few bytes
-        # using ((1<<20) // 8) because each KV pair in a map output file will use 8 bytes including metadata
-        #util.hdfs_generate_custom_word_files([["r" for j in range((1 << 20) // 8)] for i in range(num_mappers)])
+    with open(LOG_FILE_PATH, 'r') as file:
+        for line in file:
+            if "org.apache.hadoop.mapred" in line:
+                logs.append(line)
 
-        # create input file(s) that result in map task output files being 1MB, 2MB, 3MB....
-        util.hdfs_generate_custom_word_files([["r" for j in range(((1 << 20) // 8)* (i+1))] for i in range(num_mappers)])
+    util.hadoop_tear_down()
 
-        util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
-                                "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
-                                "wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])),
-                                    stderr=subprocess.STDOUT)
+    # for this test, we only care about logs that pertain to the single reducer
+    # so any logs recorded before the reduce task started is discarded
+    reduce_start_index = 0
+    sorted_logs = util.sort_log4j_by_timestamp(logs)
+    for index, line in enumerate(sorted_logs):
+        if "ReduceTask.run() start" in line:
+            reduce_start_index = index
+            break
 
-        time.sleep(5)
+    sorted_logs = sorted_logs[reduce_start_index:]
+    # ----------------------------------------------------------------------------------- 
 
-        # write logs to file
-        LOG_FILE_PATH = util.yarn_write_logs_to_file(util.yarn_get_application_id())
-
-        current_logs = []
-
-        with open(LOG_FILE_PATH, 'r') as file:
-            for line in file:
-                if "org.apache.hadoop.mapred" in line:
-                    current_logs.append(line)
-
-        util.hadoop_tear_down()
-
-        # for this test, we only care about logs that pertain to the single reducer
-        reduce_start_index = 0
-        sorted_current_logs = util.sort_log4j_by_timestamp(current_logs)
-        for index, line in enumerate(sorted_current_logs):
-            if "ReduceTask.run() start" in line:
-                reduce_start_index = index
-                break
-
-        logs.append(sorted_current_logs[reduce_start_index:])
-
-    for log in logs:
-        print("******************************************************************")
-        for line in log:
-            if "org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl" in line:
-                util.print_purple(line)
-            elif "org.apache.hadoop.mapreduce.task.reduce.MergeThread" in line:
-                print(line)
-            elif "org.apache.hadoop.mapreduce.task.reduce.InMemoryMapOutput" in line:
-                print(line)
-            elif "org.apache.hadoop.mapreduce.task.reduce.Fetcher" in line:
-                print(line)
-            elif "org.apache.hadoop.mapreduce.task.reduce.ShuffleSchedulerImpl" in line:
-                # Fetcher threads appear to be assigned 1 per host and not one per Mapper
-                print(line)
-            elif "org.apache.hadoop.mapred.Merger" in line:
-                util.print_red(line)
-            elif "org.apache.hadoop.mapred.ReduceTask" in line:
-                print(line)
-            else:
-                continue
+    # print logs pertaining to shuffle and merge
+    for line in sorted_logs:
+        if "org.apache.hadoop.mapreduce.task.reduce.MergeManagerImpl" in line:
+            util.print_purple(line)
+        elif "org.apache.hadoop.mapreduce.task.reduce.MergeThread" in line:
+            print(line)
+        elif "org.apache.hadoop.mapreduce.task.reduce.InMemoryMapOutput" in line:
+            print(line)
+        elif "org.apache.hadoop.mapreduce.task.reduce.OnDiskMapOutput" in line:
+            print(line)
+        elif "org.apache.hadoop.mapreduce.task.reduce.Fetcher" in line:
+            print(line)
+        elif "org.apache.hadoop.mapreduce.task.reduce.ShuffleSchedulerImpl" in line:
+            # Fetcher threads appear to be assigned 1 per host and not one per Mapper
+            print(line)
+        elif "org.apache.hadoop.mapred.Merger" in line:
+            util.print_red(line)
+        elif "org.apache.hadoop.mapred.ReduceTask" in line:
+            print(line)
+        else:
+            continue
