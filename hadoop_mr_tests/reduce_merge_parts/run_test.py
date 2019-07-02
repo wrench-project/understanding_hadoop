@@ -165,20 +165,38 @@ if __name__=="__main__":
         - Even though 3 MB < input buffer size and 3 MB < reduce function input buffer, since 3 MB > max shuffle limit,
           the file is written to disk. 
     '''
-    T9 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(1)]
+    T7 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(1)]
 
     '''
     Test: 2 mappers each output a file whose size is about 3 MB which is greater than the max shuffle limit.
-    Result
+    Result:
         - Both files are copied straight to disk.
         - Left with 2 sorted files since sort factor is 3.
     '''
-    T10 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(2)]
+    T8 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(2)]
 
-
+    '''
+    Test: 10 mappers each output a 3 MB file.
+    Result:
+        - OnDiskMerger thread will start merges when onDiskMapOutputs.size() >= (2 * ioSortFactor - 1),
+            so in this case when onDiskMapOutputs.size() >= 5
+        - Initially 5 files are copied to the reducer.
+        - OnDiskMerger starts, and 3 files are merged into 1 (2 ignored), therefore we end up with 
+            3 (ioSortFactor) number of files.
+        - 2 more files are copied, and now there are 5 total files on disk. OnDiskMerger starts
+            and 3 files are merged into 1 while 2 are ignored. Now, there are 3 on disk files. 
+            So far, 7 out of the 10 map output files have been copied. 
+        - 2 more files are copied, and again there are a total of 5 files on disk. OnDiskMerger
+            starts and 3 files are merged into 1 while 2 are ignored. Now there are 3 on disk files.
+            So far, 9 out of the 10 map output files have been copied. 
+        - The final file is copied leaving a total of 4 on disk files. ioSortFactor is 3, and so the
+            final merge (initiated by the MergeManagerImpl) merges the file into 1 of the 3 files
+            from the previous step thus leaving us with 3 on disk files for the reduce. 
+    '''
+    T9 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(10)]
 
     # set the test 
-    test = T6
+    test = T9
 
     # ----------------------------------------------------------------------------------- 
     util.hadoop_start_up()
