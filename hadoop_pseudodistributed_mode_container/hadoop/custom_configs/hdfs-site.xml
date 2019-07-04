@@ -4,11 +4,10 @@
     <property>
       <name>dfs.replication</name>
       <value>1</value>
-    </property
-    >
+    </property>
     <property>
       <name>dfs.block.size</name>
       <value>16777216</value>
-      <description>Block size in bits (currently set at 16 MiB)</description>
+      <description>Block size in bytes (currently set at 16 MiB)</description>
     </property>
 </configuration>

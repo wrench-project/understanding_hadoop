@@ -247,7 +247,6 @@ if __name__=="__main__":
         elif "org.apache.hadoop.mapreduce.task.reduce.Fetcher" in line:
             print(line)
         elif "org.apache.hadoop.mapreduce.task.reduce.ShuffleSchedulerImpl" in line:
-            # Fetcher threads appear to be assigned 1 per host and not one per Mapper
             print(line)
         elif "org.apache.hadoop.mapred.Merger" in line:
             util.print_red(line)

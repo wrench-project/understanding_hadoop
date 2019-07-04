@@ -123,7 +123,7 @@ if __name__=="__main__":
     # mapreduce configuration set in mapred-site.xml
     MAPREDUCE_TASK_IO_SORT_MB = 1
     MAPREDUCE_MAP_SORT_SPILL_PERCENT = 0.5
-    MAPREDUCE_JOB_REDUCES = [1,2] # run with 1, 2, and 3 reducers
+    MAPREDUCE_JOB_REDUCES = [1,2] # run with 1, and 2 reducers
 
     # keys will be of type TextWritable
     key_num_bytes = lambda num_ascii_characters : zero_compress.size_of_zero_compressed_int64(num_ascii_characters) + num_ascii_characters
