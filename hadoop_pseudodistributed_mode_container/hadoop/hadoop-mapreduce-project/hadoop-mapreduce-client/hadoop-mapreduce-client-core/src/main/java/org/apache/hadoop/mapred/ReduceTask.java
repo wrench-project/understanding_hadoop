@@ -18,6 +18,7 @@
 
 package org.apache.hadoop.mapred;
 
+import java.io.File;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -27,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
+import java.lang.management.ManagementFactory;
+import java.lang.ProcessBuilder;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -379,7 +383,31 @@ public class ReduceTask extends Task {
                   mapOutputFile, localMapFiles);
     shuffleConsumerPlugin.init(shuffleContext);
 
+    // fork strace process and attach to this process
+    String pid_string = ManagementFactory.getRuntimeMXBean().getName();
+    // pid_string is formatted as, <pid>@computer-name, pulling out just pid
+    pid_string = pid_string.split("@")[0];
+
+    // output file of system call trace will be created for each process
+    ProcessBuilder proc_builder = new ProcessBuilder("/usr/bin/strace",
+            "-ff", "-t", "-y", "-s", "300",
+            "-p", pid_string, "-e", "trace=read,write,openat",
+            "-o", "/home/hadoop/strace_output/output");
+
+    /*
+    File strace_stderr = new File("/home/hadoop/strace_stderr");
+    proc_builder.redirectError(strace_stderr);
+    */
+
+    try {
+      Process proc = proc_builder.start();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    System.out.println("calling shuffleConsumerPlugin.run()");
     rIter = shuffleConsumerPlugin.run();
+    System.out.println("shuffleConsumerPlugin.run() returned");
 
     // free up the data structures
     mapOutputFilesOnDisk.clear();

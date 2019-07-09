@@ -9,7 +9,7 @@ WORKDIR /tmp
 
 # install tools
 RUN apt-get update \
-  && apt-get install -y wget vim python3 python3-dev openssh-server pdsh
+  && apt-get install -y wget vim python3 python3-dev openssh-server pdsh strace sudo
 
 # must set this env variable for pdsh
 ENV PDSH_RCMD_TYPE="ssh"
@@ -30,7 +30,8 @@ ENV HADOOP_HOME="/usr/local/hadoop"
 
 # create hadoop user
 RUN useradd --gid 100 --uid 550 --create-home hadoop
-RUN passwd -d hadoop
+RUN echo hadoop:hadoop | chpasswd
+RUN usermod -aG sudo hadoop
 
 # set up password less login with ssh since distributed mode may be used
 USER hadoop

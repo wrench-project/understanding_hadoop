@@ -196,17 +196,20 @@ if __name__=="__main__":
     T9 = [["r" for j in range((3 * ONE_MB) // TOTAL_BYTES_PER_KV_PAIR)] for i in range(10)]
 
     # set the test 
-    test = T9
+    test = T1
 
     # ----------------------------------------------------------------------------------- 
     util.hadoop_start_up()
 
     util.hdfs_generate_custom_word_files(test)
 
+    '''
     util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
                             "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
-                            "wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])),
+                            "wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])), 
                                 stderr=subprocess.STDOUT)
+    '''
+    subprocess.check_output(("sudo -i -u hadoop /usr/local/hadoop/bin/hadoop jar /usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])), stderr=subprocess.STDOUT, shell=True)
 
     time.sleep(5)
 
@@ -254,3 +257,4 @@ if __name__=="__main__":
             print(line)
         else:
             continue
+

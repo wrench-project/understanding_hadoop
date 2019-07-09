@@ -10,4 +10,4 @@ fi
 
 docker image build --no-cache -t wrenchproject/understanding-hadoop:test-util . \
   && docker image build --no-cache -t wrenchproject/understanding-hadoop:$TEST_DIR_NAME $TEST_DIR_NAME/ \
-  && docker container run wrenchproject/understanding-hadoop:$TEST_DIR_NAME
+  && docker container run --privileged --security-opt seccomp=unconfined --security-opt apparmor=unconfined --cap-add=SYS_PTRACE wrenchproject/understanding-hadoop:$TEST_DIR_NAME
