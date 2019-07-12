@@ -206,6 +206,7 @@ public class Merger {
     long progressBar = conf.getLong(JobContext.RECORDS_BEFORE_PROGRESS,
         10000);
     long recordCtr = 0;
+    System.out.println("writing/merging records");
     while(records.next()) {
       writer.append(records.getKey(), records.getValue());
       
