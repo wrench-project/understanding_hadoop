@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 import subprocess
 import time
 import math
@@ -20,7 +20,8 @@ def generate_input_that_results_in_n_spills(desired_num_spills, mapreduce_task_i
     Given the properties: mapreduce.io.sort.mb and mapreduce.map.sort.spill.percent, and assuming that keys are single
     ascii characters of type TextWritable and values are 4 byte integers of type IntWritable, and that no combiner
     is run, produce a list of words, that when used as input to WordCount, results in the desired number of spill
-    files to be written by a single map task.
+    files to be written by a single map task. Note that if you generate an input file that is larger than the block size,
+    multiple mappers may be run.
     """
     # the number of bytes each key value pair will use in the map output buffer,
     # which includes metadata
@@ -35,65 +36,114 @@ def generate_input_that_results_in_n_spills(desired_num_spills, mapreduce_task_i
                                 mapreduce_map_sort_spill_percent *
                                 desired_num_spills) // KV_NUM_BYTES_IN_OUTPUT_BUFFER)
 
-    return ['r' for i in range(num_single_char_words)]
+    return [['r' for i in range(num_single_char_words)]]
 
 
 if __name__=="__main__":
+    '''
+    MAP SIDE PROPERTIES
+    -------------------
+    mapreduce.task.io.sort.mb
+        The size, in megabytes, of the memory buffer to use while sorting
+        map output.
+
+    mapreduce.map.sort.spill.percent
+        The threshold usage portion for both the map output memory buffer and
+        the record boundaries index to start the process of spilling to disk. For
+        example, if "mapreduce.task.io.sort.mb"=1 and "mapreduce.map.sort.spill.percent"
+        =0.5, then the process of spilling to disk will be started when about 512 KB of the
+        1 MB buffer is used.
+
+    mapreduce.task.io.sort.factor
+        The maximum number of streams to merge at once when sorting files.
+        This property is also use din the reduce. (Also used for reduce side
+        merges)
+    '''
     MAPREDUCE_PROPERTIES = {
         "mapreduce.task.io.sort.mb" : 1,
         "mapreduce.map.sort.spill.percent" : 0.5,
         "mapreduce.task.io.sort.factor" : 3
     }
 
-    # list to record the number of spill files that are expected to
-    # be generated and the number of spill files that are actually generated
-    num_spills_list = []
-    SpillFiles = namedtuple("SpillFiles", ["expected", "actual"])
+    '''
+    Map Task Configuration based on MAPREDUCE_PROPERTIES
+    ----------------------------------------------------
+    map task sort buffer size: 1 MB
+    spilling to disk will start when 0.5 MB of the 1 MB buffer is used
+    '''
 
-    # list containing the amounts of spill files word count will create
-    # by map tasks
-    num_spills_to_test = [1, 3, 8]
-    filtered_logs = []
+    ###########################################
+    # Test Specifying Number of Files Spilled #
+    ###########################################
+    '''
+    Test: 1 spill file
+    Result:
+        - The single map task creats 1 spill file.
+        - The reducer fetches and processes the single output file.
+    '''
+    T1 = 1
 
-    for i in num_spills_to_test:
-        util.hadoop_start_up()
-        util.hdfs_generate_custom_word_file(generate_input_that_results_in_n_spills(i,
-                                                                                    MAPREDUCE_PROPERTIES["mapreduce.task.io.sort.mb"],
-                                                                                    MAPREDUCE_PROPERTIES["mapreduce.map.sort.spill.percent"]))
+    '''
+    Test: 3 spill files
+    Result:
+        - The single map task creates 3 spill files.
+        - The map task merges these 3 spill files into a single file.
+        - The reducer fetches and processes a single merged output file from the mapper.
+    '''
+    T2 = 3
 
-        util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
-                                "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
-                                "wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])),
-                                    stderr=subprocess.STDOUT)
+    '''
+    Test: 8 spill files
+    Result:
+        - The single map task creates 8 spill files.
+        - The map task will then merge these 8 spill files into a single spill file.
+            - the merges take place as follows:
+            simulate_merges_using_variable_pass_factor(3, 8)
+                pass: 1, current_num_segments: 8, pass_factor: 2, remaining_num_segments: 7
+                pass: 2, current_num_segments: 7, pass_factor: 3, remaining_num_segments: 5
+                pass: 3, current_num_segments: 5, pass_factor: 3, remaining_num_segments: 3
+                pass: 4, current_num_segments: 3, pass_factor: 3, remaining_num_segments: 1
+        - The reducer fetches and processes a single merged output file from the mapper.
+    '''
+    T3 = 8
 
-        time.sleep(5)
+    # set the test
+    test = T2
 
-        # write logs to file
-        LOG_FILE_PATH = util.yarn_write_logs_to_file(util.yarn_get_application_id())
+    # -----------------------------------------------------------------------------------
+    util.hadoop_start_up()
+    util.hdfs_generate_custom_word_files(generate_input_that_results_in_n_spills(test,
+            MAPREDUCE_PROPERTIES["mapreduce.task.io.sort.mb"],
+            MAPREDUCE_PROPERTIES["mapreduce.map.sort.spill.percent"]))
 
-        num_spills = 0
+    util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
+                            "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
+                            "wordcount {} input output").format(
+                                " ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])
+                                ), stderr=subprocess.STDOUT)
 
-        with open(LOG_FILE_PATH, 'r') as file:
-            current_trial_logs = []
-            for line in file:
+    time.sleep(5)
 
-                if "Merger" in line:
-                    print(line)
-                    current_trial_logs.append(line)
+    # write logs to file
+    LOG_FILE_PATH = util.yarn_write_logs_to_file(util.yarn_get_application_id())
 
-                if "Finished spill" in line:
-                    print(line)
-                    num_spills += 1
-                    current_trial_logs.append(line)
+    logs = []
 
-        num_spills_list.append(SpillFiles(i, num_spills))
-        filtered_logs.append(current_trial_logs)
+    with open(LOG_FILE_PATH, 'r') as file:
+        for line in file:
+            if "org.apache.hadoop.mapred" in line:
+                logs.append(line)
 
-        util.hadoop_tear_down()
+    sorted_logs = util.sort_log4j_by_timestamp(logs)
+    util.hadoop_tear_down()
+    # -----------------------------------------------------------------------------------
 
-    trials = list(zip(num_spills_list, filtered_logs))
-    for trial in trials:
-        pass_factor.simulate_merges_using_variable_pass_factor(MAPREDUCE_PROPERTIES["mapreduce.task.io.sort.factor"], trial[0].actual)
-        print("logs:")
-        print(*util.sort_log4j_by_timestamp(trial[1]), sep="\n")
-        print("================")
+    # print logs pertaining to map side spills and merge
+    for line in sorted_logs:
+        if "Merger" in line:
+            util.print_purple(line)
+        elif "Finished spill" in line:
+            util.print_blue(line)
+
+    #print("------")
+    #pass_factor.simulate_merges_using_variable_pass_factor(MAPREDUCE_PROPERTIES["mapreduce.task.io.sort.factor"], test)
