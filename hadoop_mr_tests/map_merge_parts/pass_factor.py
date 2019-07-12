@@ -46,7 +46,7 @@ def simulate_merges_using_variable_pass_factor(factor, initial_num_segments):
             pass_number,
             current_num_segments,
             pass_factor,
-            remaining_num_segments
+            remaining_num_segments if remaining_num_segments > 0 else 1 
         ))
 
         pass_number += 1
