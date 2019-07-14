@@ -448,6 +448,58 @@ priority queue, which puts a bound on the cost of maintaining the priority queue
 
 ### Test: Reduce Merge Parts
 
+### Description
 
+This test looks at how a reduce task perform's the merging of map output
+files it receives. In this test, the number of map output files
+and the size of those files that a single reducer receives is varied so that
+the behavior of the merge by the reduce task can be observed from its logs.
+
+The following properties are fixed throughout this test:
+```
+MAPREDUCE_PROPERTIES = {
+    "mapreduce.reduce.memory.mb": 1024, # memory allotted for reduce task container
+    "mapreduce.reduce.java.opts": "-Xmx100m", # reduce jvm process heap size
+    "mapreduce.reduce.shuffle.parallelcopies": 5,
+    "mapreduce.task.io.sort.factor": 3,
+    "mapreduce.reduce.shuffle.input.buffer.percent": 0.1,
+    "mapreduce.reduce.shuffle.memory.limit.percent": 0.2,
+    "mapreduce.reduce.shuffle.merge.percent" : 0.5,
+    "mapreduce.reduce.merge.inmem.threshold": 1000,
+    "mapreduce.reduce.input.buffer.percent": 0.5
+}
+```
+
+This means that reduce tasks are configured as follows:
+
+```
+allocated memory: 1024 MB
+jvm heap size: 100 MB (a little less in practice as Runtime.getRuntime.maxMemory() returns 93323264 bytes)
+input buffer size: (93323264 * 0.1) = 9332326.4 bytes or about 9.3 MB
+merge threshold: (9.3 MB * 0.5) = 4666163.2 bytes or about 4.6 MB
+max single shuffle limit: 1866465.28 bytes or about 1.9 MB
+reduce function input buffer: (9.3 MB * 0.5) = 4666163.2 bytes or about 4.6 MB
+```
+
+When a reduce task is started, but before it has completed merging all map
+output files assigned to it, it creates a number of child threads. First, it
+creates two threads responsible for merging files: the InMemoryMerger and the
+OnDiskMerger. Then, the main thread will create a number of Fetcher threads
+that will copy output files from map tasks.
+`/hadoop_mr_tests/reduce_merge_parts/reduce_merging_trace.svg` illustrates
+the stack trace of `ReduceTask.run()`.
+
+### Running the Test
+
+1. Navigate to `hadoop_mr_tests`.
+2. Run `./build_and_run_test reduce_merge_parts`.
+  - This may take a few minutes to complete.
+  - set the variable `test` to any of the 9 tests or create your own 
+3. Visually inspect output.
+
+### Results
+
+Results will vary by test. Go to `/hadoop_mr_tests/reduce_merge_parts/run_test.py`
+for the results of each test.
 
 ## Creating Your Own Test
