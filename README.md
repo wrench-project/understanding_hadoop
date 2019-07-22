@@ -5,6 +5,7 @@
 3. [Repository Contents](#repository-contents)
 4. [Tests and Current Findings](#tests-and-current-findings)
 5. [Creating Your Own Test](#creating-your-own-test)
+6. [Docker Image Structure](#docker-image-structure)
 
 ## General Overview
 
@@ -74,7 +75,7 @@ understanding_hadoop
 │   └── zero_compress.py        <-- some functions to see how zero compression works in hadoop
 └── hadoop_pseudodistributed_mode_container
     ├── Dockerfile
-    ├── build_and_push_hadoop_run_env_container.sh      <-- script to build a docker image that serves as the environment for running hadoop
+    ├── build_and_push_hadoop_run_env_image.sh      <-- script to build a docker image that serves as the environment for running hadoop
     ├── entrypoint.sh
     ├── hadoop      <-- hadoop source
     │   ├── BUILDING.txt
@@ -82,7 +83,7 @@ understanding_hadoop
     │   ├── LICENSE.txt
     │   ├── NOTICE.txt
     │   ├── README.txt
-    │   ├── build_hadoop_container.sh       <-- script to build the source code, and create a docker image of it locally
+    │   ├── build_and_push_hadoop_image.sh       <-- script to build the source code, and create a docker image of it locally
     │   ├── custom_configs
     │   ├── dev-support
     │   ├── hadoop-assemblies
@@ -127,19 +128,21 @@ There are currently 4 tests in the `understanding_hadoop/hadoop_mr_tests`
 directory. Each test was developed by first getting an understanding of what
 happens during MR based on information provided from the resources above,
 then reading through pertinent source code in
-`understanding_hadoop/hadoop_pseudodistributed_mode_container/hadoop`, making
+`understanding_hadoop/hadoop_pseudodistributed_mode_container/hadoop`
+(which has been cloned from `https://github.com/apache/hadoop.git`), making
 assumptions about what that source code actually does, then testing our
 assumptions by running a **word count** MR program on some input, and finally
+(`understanding_hadoop/hadoop_pseudodistributed_mode_container/hadoop/hadoop-mapreduce-project/hadoop-mapreduce-examples/src/main/java/org/apache/hadoop/examples/WordCount.java`)
 analyzing an aggregation of logs produced by Hadoop (some of which were added
 into the source code by us to get more information than what was already logged).
 
-Tests are set up such that they can be run by simply navigating to
+Tests are set up such that they can be run by navigating to
 `understanding_hadoop/hadoop_mr_tests`, then running the command
 `./build_and_run_test.sh <name of directory that contains the test (but without trailing
 forward slash)`.
 
-The following subsections discusses each test, findings, how to run and
-how to run them.
+The following subsections discuss each test, their findings,
+and how to run them.
 
 ### Test: Number of Map Tasks
 
@@ -494,7 +497,7 @@ the stack trace of `ReduceTask.run()`.
 1. Navigate to `hadoop_mr_tests`.
 2. Run `./build_and_run_test reduce_merge_parts`.
   - This may take a few minutes to complete.
-  - set the variable `test` to any of the 9 tests or create your own 
+  - set the variable `test` to any of the 9 tests or create your own
 3. Visually inspect output.
 
 ### Results
@@ -503,3 +506,113 @@ Results will vary by test. Go to `/hadoop_mr_tests/reduce_merge_parts/run_test.p
 for the results of each test.
 
 ## Creating Your Own Test
+
+You may want to create your own test to observe some aspect of a MR execution
+that has not yet been covered in the above tests. This involves writing a
+script to run the test, and possibly modifying the hadoop source code.
+
+Note that these tests are limited in that hadoop is run in pseudo distributed
+mode where we have multiple jvm processes running on a single host (the container).
+Multiple mappers and reducers may be started, however they are still running
+on the same host and therefore these tests do not simulate a hadoop cluster.
+Additionally, there is no HDFS file replication (typically a factor of 3) since
+everything is running in a single host (Adding HDFS replication would be pointless
+here).  
+
+### Writing A Test
+
+1. Create a directory in `/hadoop_mr_tests/<name_of_your_test>`
+2. In `/hadoop_mr_tests/<name_of_your_test>`, create a `run_test.py`
+    - for reference, take a look at the tests that currently exist
+    - this file should look something like the following:
+    ```python
+    #!/usr/bin/env python3
+    import subprocess
+    import time
+    import util
+
+    if __name__=="__main__":
+      # mapreduce properties that will be submitted along with the word count job
+      MAPREDUCE_PROPERTIES = {
+        "property_name": "value", ...
+      }
+
+      # starts up an environment to run hadoop in pseudo distributed mode, that
+      # is a single node with separate jvm processes
+      util.hadoop_start_up()
+
+      # generate input file(s) that will serve as input to the word count job
+      # and add them to hdfs
+      util.hdfs_generate_custom_word_files(<list of lists of words>)
+
+      # submit the word count job, a long with specific mapreduce properties
+      util.execute_command(("/usr/local/hadoop/bin/hadoop jar "
+                              "/usr/local/hadoop/share/hadoop/mapreduce/hadoop-mapreduce-examples-3.3.0-SNAPSHOT.jar "
+                              "wordcount {} input output").format(" ".join(["-D {}={}".format(property, value) for property, value in MAPREDUCE_PROPERTIES.items()])),
+                                  stderr=subprocess.STDOUT)
+
+    # this sleep needs to be here because moving to the next statement too fast
+    # causes some errors...                              
+    time.sleep(5)
+
+    # write logs to file;
+    # this function obtains the aggregated logs from all the processes created
+    # during the most recent job (the one we just ran above), and writes them
+    # to a file; note that they may be chronologically out of order
+    LOG_FILE_PATH = util.yarn_write_logs_to_file(util.yarn_get_application_id())
+
+    logs = []
+
+    with open(LOG_FILE_PATH, 'r') as file:
+        for line in file:
+          logs.append(line)
+
+    util.hadoop_tear_down()
+
+    # loop through "logs" and pull out ones that are relevant to your test
+    ```
+3. In '/hadoop_mr_tests/<name_of_your_test>' create a 'Dockerfile'
+    - for reference, take a look a the tests that currently exist
+    - this file should look something like the following
+    ```
+    FROM wrenchproject/understanding-hadoop:test-util
+
+    USER root
+
+    COPY run_test.py /home/hadoop/run_test.py
+    RUN chmod u+x /home/hadoop/run_test.p
+
+    ENTRYPOINT ["/etc/entrypoint.sh"]
+    CMD ["python3", "run_test.py"]
+    ```
+4. To run your test, navigate to '/hadoop_mr_tests' and run
+    './build_and_run_test <name_of_your_test>'
+    - this will build the docker image containing your test and run it
+
+### Modifying the Hadoop Source Code
+
+In some cases, you may want to edit the hadoop source code to see how
+it affects the MR word count execution or to add new logs. If you edit the
+source code, you need to recompile it, and rebuild the docker image. To
+recompile the code:
+1. Navigate to '/hadoop_pseudodistributed_mode_container/hadoop'
+2. Run `./build_and_push_hadoop_run_env_image.sh`
+
+## Docker Image Structure
+
+```
++-----------------------------------------------------------+
+| wrenchproject/understanding-hadoop:hadoop-run-environment | # dependencies needed to install/run hadoop
++-------+---------------------------------------------------+
+        |
+        |
+        v
++-------+-----------------------------------+
+| wrenchproject/understanding-hadoop:hadoop | # hadoop source code
++------------------+------------------------+
+                   |
+                   v
++-------------------+--------------------------+
+| wrenchproject/understanding-hadoop:test-name | # tests
++----------------------------------------------+
+```
