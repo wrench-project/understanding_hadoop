@@ -429,7 +429,7 @@ eshold=3
 
 Map side merges will always run once once the mapper has gone through all of its
 input. The merge will generate a single, partitioned, sorted output file. At each
-pass of the merge, at most "mapreduce.task.io.sort.factor" spill files into a single
+pass of the merge, at most "mapreduce.task.io.sort.factor" spill files are merged into a single
 intermediate spill file. The logs (as shown above) show, at each pass, how many
 files are being merged into one. Additionally, without running the test, we can
 calculate this by using `/hadoop_mr_tests/map_merge_parts/pass_factor.py`. For
@@ -499,6 +499,13 @@ the stack trace of `ReduceTask.run()`.
   - This may take a few minutes to complete.
   - set the variable `test` to any of the 9 tests or create your own
 3. Visually inspect output.
+4. Navigate to `/hadoop_mr_tests/reduce_merge_parts`
+5. Run `./get_strace_output.sh` to get strace output from whenever a merge is run. 
+    This script will copy strace output files from the container to the host machine
+    and print out the name of the file that contains output specifically from the thread
+    that called the merge. To make modifications to the strace call, see
+    `/hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapred/ReduceTask.java`
+    line 392.  
 
 ### Results
 
@@ -613,6 +620,11 @@ recompile the code:
                    |
                    v
 +-------------------+--------------------------+
+| wrenchproject/understanding-hadoop:test-util | # contains code used by one or more tests 
++---------------------------+------------------+
+                            |
+                            v
++---------------------------+------------------+
 | wrenchproject/understanding-hadoop:test-name | # tests
 +----------------------------------------------+
 ```
