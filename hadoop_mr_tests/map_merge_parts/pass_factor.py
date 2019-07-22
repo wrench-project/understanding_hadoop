@@ -4,7 +4,7 @@
 Testing mergeParts() in
 hadoop-mapreduce-project/hadoop-mapreduce-client/hadoop-mapreduce-client-core/src/main/java/org/apache/hadoop/mapred/MapTask.java.
 mergeParts() is called at the end of a map task once all map output has been spilled onto disk
-in a single or multiple spill files.
+in a single or multiple spill files. The variable "factor" refers to the value set for the property, "mapreduce.task.io.sort.factor".
 """
 
 def get_pass_factor(factor, pass_number, num_segments):
