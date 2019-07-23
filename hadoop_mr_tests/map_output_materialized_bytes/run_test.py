@@ -150,7 +150,7 @@ if __name__=="__main__":
         for num_chars in NUM_ASCII_CHARACTERS_PER_WORD:
             for num_words in NUM_WORDS_LIST:
                 util.hadoop_start_up()
-                util.hdfs_generate_custom_word_files([chr(97 + (i % len(MAPREDUCE_JOB_REDUCES))) * num_chars for i in range(1, num_words + 1)])
+                util.hdfs_generate_custom_word_files([[chr(97 + (i % len(MAPREDUCE_JOB_REDUCES))) * num_chars for i in range(1, num_words + 1)]])
 
                 # things to record
                 num_spill_files = 0
