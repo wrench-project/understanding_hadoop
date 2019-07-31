@@ -603,7 +603,10 @@ it affects the MR word count execution or to add new logs. If you edit the
 source code, you need to recompile it, and rebuild the docker image. To
 recompile the code:
 1. Navigate to '/hadoop_pseudodistributed_mode_container/hadoop'
-2. Run `./build_and_push_hadoop_run_env_image.sh`
+2. Run `./start-build-env.sh`, which will place you in a Docker container with
+    all the dependencies needed to compile Hadoop
+3. After that has completed, exit the container by typing `exit`.
+4. In '/hadoop_pseudodistributed_mode_container/hadoop', run `./build_and_push_hadoop_image.sh`.
 
 ## Docker Image Structure
 
