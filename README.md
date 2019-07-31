@@ -119,8 +119,9 @@ understanding_hadoop
     ├── other_related_files
     └── run_test.py
     ```
-- `hadoop_pseudodistributed_mode_container`: contains the hadoop source code, and scripts
-  to build the environment used to run the tests
+- `hadoop_pseudodistributed_mode_container`: contains the hadoop source code,
+  the hadoop config files  (in directory hadoop/custom_configs) which you can modify to test different scenarios, 
+  and scripts to build the environment used to run the tests
 
 ## Tests and Current Findings
 
@@ -158,7 +159,7 @@ tasks are started based on output from the word count program.
 #### Running the Test
 
 1. Navigate to `hadoop_mr_tests`.
-2. Run `./build_and_run_test number_of_map_tasks`.
+2. Run `./build_and_run_test.sh number_of_map_tasks`.
   - This may take a few minutes to complete.
 3. Visually inspect output.
   - We care about the line that says: "Launched map tasks="
@@ -370,7 +371,7 @@ more than what it would use as a normal 8 byte Long (this is a tradeoff they mad
 
 #### Running the Test
 1. Navigate to `hadoop_mr_tests`.
-2. Run `./build_and_run_test map_output_materialized_bytes`.
+2. Run `./build_and_run_test.sh map_output_materialized_bytes`.
   - This may take a few minutes to complete.
 3. Visually inspect output.
 
@@ -389,7 +390,7 @@ through the logs.
 #### Running the Test
 
 1. Navigate to `hadoop_mr_tests`.
-2. Run `./build_and_run_test map_merge_parts`.
+2. Run `./build_and_run_test.sh map_merge_parts`.
   - This may take a few minutes to complete.
 3. Visually inspect output.
   - Colored in blue are logs regarding the creation of spill files. This should match the
@@ -495,9 +496,9 @@ the stack trace of `ReduceTask.run()`.
 ### Running the Test
 
 1. Navigate to `hadoop_mr_tests`.
-2. Run `./build_and_run_test reduce_merge_parts`.
+2. Run `./build_and_run_test.sh reduce_merge_parts`.
   - This may take a few minutes to complete.
-  - set the variable `test` to any of the 9 tests or create your own
+  - set the variable `test` (in `run_test.py`) to any of the 9 tests or create your own
 3. Visually inspect output.
 4. Navigate to `/hadoop_mr_tests/reduce_merge_parts`
 5. Run `./get_strace_output.sh` to get strace output from whenever a merge is run. 
@@ -509,8 +510,8 @@ the stack trace of `ReduceTask.run()`.
 
 ### Results
 
-Results will vary by test. Go to `/hadoop_mr_tests/reduce_merge_parts/run_test.py`
-for the results of each test.
+Results will vary by test. Several key test results have been added as comments in the `/hadoop_mr_tests/reduce_merge_parts/run_test.py`
+script itself. 
 
 ## Creating Your Own Test
 
@@ -593,7 +594,7 @@ here).
     CMD ["python3", "run_test.py"]
     ```
 4. To run your test, navigate to '/hadoop_mr_tests' and run
-    './build_and_run_test <name_of_your_test>'
+    './build_and_run_test.sh <name_of_your_test>'
     - this will build the docker image containing your test and run it
 
 ### Modifying the Hadoop Source Code
