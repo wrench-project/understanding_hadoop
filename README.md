@@ -609,7 +609,7 @@ recompile the code:
     all the dependencies needed to compile Hadoop
 3. Run (inside this container) the `./compile_source.sh` script (which builds Hadoop)
 4. After that has completed, exit the container by typing `exit`.
-5. In `/hadoop_pseudodistributed_mode_container/hadoop`, run `./build_and_push_hadoop_image.sh`.
+5. In `./hadoop_pseudodistributed_mode_container/hadoop`, run `./build_and_push_hadoop_image.sh`.
 
 ## Docker Image Structure
 
