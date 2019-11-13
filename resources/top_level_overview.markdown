@@ -2,11 +2,12 @@
 
 This page serves as an overview of what constitutes a MapReduce job.  We then
 look into what's going on under the hood relating to the Hadoop implementation
-of MapReduce.  The lower-level, implementation details realting to
+of MapReduce.  The lower-level, implementation details relating to
 [How Hadoop Handles MapReduce](#how-hadoop-handles-mapreduce) will be covered
 in the __Roadmap__ section.
 
 ### What is MapReduce?
+
 As per _Map Reduce: Simplified Data Processing on Large Clusters_:
 
 MapReduce is a programming model inspired by the synonymous primitives present
@@ -17,14 +18,14 @@ Conceptually, MapReduce can be broken into the following:
 1. __Computation__: Accepts a set of _input_ `(key, value)` pairs and produces a
 set of _output_ `(key, value)` pairs.
 
-2. __Map__: A user defined function that takes input pairs and produces a set of _intermediate_ `(key, value)` pairs. The MapReduce library groups all of these
-intermediate values associated with the same intermediate key, _I_, and passes
+2. __Map__: A user defined function that takes input pairs and produces a set of
+_intermediate_ `(key, value)` pairs. The MapReduce library groups all of these
+intermediate values associated with the same intermediate key, `I`, and passes
 them to the reduce function.
 
 3. __Reduce__:  Is a user defined function that accepts an intermediate key,
-`I`, and a set of values for that key. It merges the values together.  Typically
-zero or one output values are produced by any _Reduced_ invocation.
-(The list of values are passed by an iterator to deal with memory availability.)
+`I`, and a set of values for that key. It then merges the values together.
+Typically zero or one output values are produced by any _Reduce_ invocation.
 
 The above computational process has the following type associations:
 
@@ -48,31 +49,31 @@ The following is a simplification of the steps outlined in
 _Map Reduce: Simplified Data Processing on Large Clusters_.  After we break down
 the process, we'll explore how Hadoop handles each of the following:
 
-1. The MapReduce library splits the input into _M_ chunks, and starts up copies
+1. The MapReduce library splits the input into _M_ blocks, and starts up copies
 of the program on multiple machines.
 
-2. The _master_ fork assigns tasks to the _worker_ nodes who are just running
+2. The _master_ assigns tasks to the _worker_ nodes who are just running
 copies of the _user program_.  There are `M` map tasks, and `R` reduce tasks
-that the _master_ must assign. Note that a worker node takes on the role of
+that the master must assign. Note that a worker node takes on the role of
 either map, or reduce. Typically, there are many more map nodes than reduce
 nodes.
 
-3. A _worker_ assigned a map task, reads in the contents of the corresponding
-input split.  The _worker_ parses (key, values) pairs and passes it to the map
+3. A worker assigned a map task reads in the contents of the corresponding
+input block.  The worker parses (key, values) pairs and passes it to the map
 function. The _intermediate_ (key, value) pairs produced by the mapping are
 buffered into memory.
 
-4. The local disk it partitioned into `R` regions by the _partitioning
-function_. The buffered _intermediate_ pairs produced by a map worker are
-periodically written to these partitions, with the particular location of these
-writes sent back to `master` for use by the reduce workers.
+4. The local disk it partitioned into `R` regions by the _partitioning function_.
+The buffered _intermediate_ pairs produced by a map worker are periodically
+written to these partitions, with the particular location of these writes sent
+back to the master for use by the reduce workers.
 
-5. When the `master` notifies a _reduce_ worker about a particular location of
+5. When the master notifies a reduce worker about a particular location of
 _intermediate_ key-value pairs, it reads the buffered data from the local
 disks of the map workers. When a reduce worker has read all intermediate data,
 it sorts it by key so that all of the same keys are grouped together. The
 sorting is needed because many different keys can map to the same reduce task.
-If the amount of intermediate data is too large to fit in memory, an external
+If the amount of intermediate data is too large to fit in memory, an on-disk
 sort is used.
 
 6. The reduce worker iterates over the sorted data and for each unique
@@ -81,9 +82,11 @@ intermediate values to the user’s _reduce_ function. The output of the reduce
 function is appended to a final output file for this reduce partition.
 
 7. When all map tasks and reduce tasks have been completed, the call to
-MapReduce reaches a return statement back to user code.
+MapReduce reaches a return statement back to user code.  See
+[Job Completion](#Point-7:-Job-Completion).
 
 ## How Hadoop Handles MapReduce
+
 Now that we are comfortable with what MapReduce is, let's look into
 understanding how Hadoop handles MapReduce.  Here, each point expands on the
 corresponding number in [Steps in a MapReduce Process](#steps-in-a-map-reduce-process).
@@ -91,38 +94,40 @@ corresponding number in [Steps in a MapReduce Process](#steps-in-a-map-reduce-pr
 Before a job can be started, however, it must run through a few steps:
 1. A job must be submitted via the user API.
 2. The resource manager retrieves the job ID (application ID)
-3. The job client checks output specification, computes splits (which can also
-  be changed to be computed over the cluster, useful for a job with many splits),
-  and then copy job resources over to the HDFS.
+3. The job client checks output specification, computes input splits (these are
+  meta data of individual input blocks, which can be computed over the cluster,
+  see the last paragraph of [Splitting and Assigning Tasks](./top_level_overview.markdown#Point-1-&-2:-Splitting-and-Assigning-Tasks)).
+  Finally, the client copies job resources over to the Hadoop Distributed File
+  System (HDFS).  These resources include the job `JAR`, configuration
+  parameters, and the input split information.
 
 #### Point 1 & 2: Splitting and Assigning Tasks
-HDFS (Hadoop Distributed File System) breaks down large files into configurable
-sized blocks, defaulting to 64 MB.  It then stores copies of these blocks across
-nodes in the cluster.  
+
+HDFS splits large files into blocks of a configurable size, defaulting to 
+`64 MB`.  It then stores copies of these blocks across nodes in the cluster.  
 
 Using YARN (YARN Applied Resource Negotiator), The resource manager acts as the
-cluster resource manager (no way), as well as the job scheduling facility.  The
+cluster resource manager, as well as the job scheduling facility.  The
 resource manager creates an Application Master daemon (AMD) to monitor the
 life cycle of the job.  One of the initial things that the AMD does is distinguish
 which HDFS blocks are needed for processing.  The AMD requests data from the
 `NameNode` on where the relevant replicated blocks of data are stored. With this
 information, the AMD then requests the resource manager to have map tasks
 process the specified blocks on the same nodes where the data is stored. This
-data locality helps to avoid potentially painful network bottlenecks.
+data locality helps to network bottlenecks.
 
 The number of map tasks correspond to the number of created blocks, while the
 number of reducers are configurable via the `mapreduce.jobs.reduces` property.
-Thus for each input split, a map task is spawned.  The number of maps is
-typically driven by the number of HDFS blocks in the input file. This block size
-is configurable, and therefore allows for a workaround when wishing to adjust the
+Thus for each input split, a map task is spawned.  This block size is
+configurable, and therefore allows for a workaround when wishing to adjust the
 number of map tasks.
 
 There does exists a `mapred.map.tasks` parameter, however this is simply a hint
 to the `InputFormat` (which describes the input-specification for a Map-Reduce
 job), regarding the number of map tasks.
 
-Thus, e.g., if you expect 10TiB of input data and have 128MiB DFS blocks, you'll
-end up with 81920 maps, unless your `mapred.map.tasks` is even larger.
+Thus, e.g., if you expect 10TiB of input data and have 128MiB HDFS blocks,
+you'll end up with 81920 maps, unless your `mapred.map.tasks` is even larger.
 Ultimately the `InputFormat` determines the number of maps.
 
 ```
@@ -153,10 +158,10 @@ the record, including the byte offset of the partial record.
 
 For each map task, Hadoop places intermediate values into a circular buffer,
 located in memory, and is configurable under `mapreduce.task.io.sort.mb`
-(defaults to 100MB). This value is the total amount of data that a particular
-map task can output. If a configurable percentage of this limit is met, then the
-data will be spilled to the disk as a _shuffle spill file_.  Spills are written
-in a round-robin fashion.
+(defaults to 100MB). This value is the total amount of output data that a
+particular map task can keep in memory. If a configurable percentage of this
+limit is met, then the data will be spilled to the disk as a
+_shuffle spill file_.  Spills are written in a round-robin fashion.
 
 On any given node, multiple map tasks can be run, and as a result many spill
 files can be created.  Hadoop merges all of the spill files, sorts, and then
@@ -173,9 +178,9 @@ data to write locally, thus less data to transfer to the reducer.  It is
 important to note that a combiner basically compresses the data, meaning it
 will eventually have to be decompressed before reducing.
 
-The circular buffer has a configurable threshold, defaulted to 80%. The buffer
-below has `0.8 * 100 MB = 80 MB` of data written, which is the limit in this
-example:
+The circular buffer has a configurable threshold, defaulted to 80%, at which
+point a spill to disk is triggered. The buffer below has `0.8 * 100 MB = 80 MB`
+of data written, which is the limit in this example:
 
 ```
 [XXXXXXXX--]
@@ -218,26 +223,27 @@ counter value.
 the maps in the job. Incremented every time the collect() method is called on
 the map's OutputCollector.
 
-#### Point 5: Preparing for a reduce task
+#### Point 5 & 6: Preparing for a reduce task
+
 MapReduce has the guarantee that the input to every reducer is sorted by key. As
 mentioned in _point 3 & 4_, the system sorts and merges the disjoint spill files
 of individual map tasks and then transfers the map outputs to the reducers.  The
 process where map outputs are fetched by reduce tasks in known as the _shuffle_.
-In other contexts, the shuffle can be taken as the entire process from maps
-producing output, to reducers consuming input.  For our purposes, it helps to
-distinguish the shuffle phase as a discrete step.
+In _Hadoop the Definitive Guide_, the shuffle is portrayed as the entire process
+from maps producing output, to reducers consuming input.  For our purposes, it
+helps to distinguish the shuffle phase as a discrete step.
 
-An __Event Fetcher__ fetches map task completion events over a network, and then
+An __Event Fetcher__ fetches map task completion events over the network, and then
 adds them to the fetch queue to be consumed by the fetchers themselves.  These
 fetchers are run in separate threads, configurable in
 `mapred.reduce.parallel.copies`, which defaults to five.  The fetchers store the
 map outputs in memory with its own configurable memory buffer.
 
-With Memory-To-Memory enabled, when the amount of map tasks reaches a
-configurable threshold, in-memory merge is initiated.  The outputs of the
+With Memory-To-Memory enabled, when the number of map task output files reaches
+a configurable threshold, in-memory merge is initiated.  The outputs of the
 `MemoryToMemory` merge are stored in memory, when the memory buffer storing
 these outputs reaches a certain percentage, the `InMemory` merger is invoked.
-The `OnDisk` merger is triggered each time the number of files increases  by
+The `OnDisk` merge is triggered each time the number of files increases  by
 `2 * mapreduce.task.io.sorter - 1`, but it does not merger more than
 `mapreduce.task.io.sort.factor` files.
 
@@ -276,8 +282,43 @@ merged files.  Leaving six unmerged, and four merged files for the final round:
 
 `1 + 3 + 6 = 10 = merge factor`.
 
+#### Point 7: Job Completion
+
+When Hadoop completes a MapReduce job, the results are generated by HDFS to a
+common output directory that can be set via `FileOutputFormat.setOutputPath()`.
+Every reducer writes a separate file in this common output directory. There are
+a number of different types of `OutputFormat`:
+
+* __TextOutputFormat__
+  * This is the default output which writes (key, value) pairs on individual
+  lines within text files.  The (key, value) pairs can be of any type as
+  `TextOutputFormat` converts them to stings via a a call to the `toString()`
+  method.
+* __SequenceFileOutputFormat__
+  * A Hadoop specific file format that stores data in a serialized key-value
+  pair.  That is, serialized as a stream of bytes.  It is a flat file structure
+  which is of the same format that data is stored as internally during the
+  processing of MapReduce tasks.  This extends the append-only capability of the
+  HDFS.
+* __MapFileOutputFormat__
+  * Used to write output as map files. `MapFile` is a sorted extension of
+  `SequenceFile`.  The `MapFile` is actually a directory that contains two
+  files, a data file and an index file. This allows for sorted (key, value)
+  pairs to be saved along with the offset index, allowing for faster lookups as
+  compared to the sequential lookup of a `SequenceFile`.
+* __MultipleOutputs__
+  * Allows for writing files named based off output keys and values, or any 
+  arbitrary user defined string.
+* __LazyOutputFormat__
+  * A wrapper for `OutputFormat` that ensure that a file will be created if
+  and only if there is data to be written (`FileOutputFormat` will write files
+  even if they are empty).
+* __DBOutputFormat__
+  * An `OutputFormat` for writing to relational databases.
+
 Resources:
 * Hadoop Definitive Guide, 3rd edition; Tom White
 * [Hadoop MapReduce Comprehensive Description](https://0x0fff.com/hadoop-mapreduce-comprehensive-description/)
 * [Map Reduce: Simplified Data Processing on Large Clusters](https://www.usenix.org/legacy/events/osdi04/tech/full_papers/dean/dean.pdf)
 * https://cwiki.apache.org/confluence/display/HADOOP2/HowManyMapsAndReduces
+* https://www.quora.com/What-is-mapfiles-in-hadoop
